@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KIKO - Streetwear Premium Collection</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600;700&family=Montserrat:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Custom Cursor -->
+    <div class="custom-cursor"></div>
+
+    <!-- Parallax Background -->
+    <div class="parallax-bg"></div>
+
+    <!-- Loader -->
+    <div class="loader">
+        <div class="loader-content">
+            <img src="/img/logo.jpeg" alt="KIKO Logo" class="loader-logo">
+            <div class="loader-text">KIKO</div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header>
+        <nav>
+            <div class="logo-container">
+                <img src="/img/logo.jpeg" alt="KIKO Logo" class="logo-img">
+                <span class="logo-text">KIKO</span>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#inicio">Inicio</a></li>
+                <li><a href="#coleccion">Colección</a></li>
+                <li><a href="#nosotros">Nosotros</a></li>
+                <li><a href="#contacto">Contacto</a></li>
+            </ul>
+            <div class="cart-icon" onclick="toggleCart()">
+                <i class="bi bi-bag-fill"></i>
+                <span class="cart-count">0</span>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section id="inicio" class="hero">
+        <div class="hero-content">
+            <h1>KIKO</h1>
+            <p class="hero-subtitle">Streetwear Premium Collection</p>
+            <a href="#coleccion" class="cta-button">Explorar Colección</a>
+        </div>
+    </section>
+
+    <!-- Collection Section -->
+    <section id="coleccion" class="collection">
+        <div class="section-title">
+            <h2>Nueva Colección</h2>
+            <p>Diseños Exclusivos - Edición Limitada 2026</p>
+        </div>
+
+        <div class="products-grid">
+            <!-- Product 1 - Black T-shirt -->
+            <div class="product-card">
+                <div class="product-image-container">
+                    <span class="product-badge">Nuevo</span>
+                    <img src="/img/black.jpeg" alt="KIKO Sand Black T-Shirt" class="product-image">
+                </div>
+                <div class="product-info">
+                    <h3 class="product-name">Sand Kiko Black</h3>
+                    <p class="product-description">Camiseta oversized premium con diseño gráfico exclusivo. Estampado artístico inspirado en la cultura urbana de Compton con elementos únicos y acabados de alta calidad.</p>
+                    <div class="product-price">$89.900 COP</div>
+                    <div class="product-sizes">
+                        <div class="size-option" onclick="selectSize(this)">S</div>
+                        <div class="size-option" onclick="selectSize(this)">M</div>
+                        <div class="size-option selected" onclick="selectSize(this)">L</div>
+                        <div class="size-option" onclick="selectSize(this)">XL</div>
+                    </div>
+                    <button class="shop-button" onclick="addToCart('Sand Kiko Black', 89900, '/img/black.jpeg')">
+                        <i class="bi bi-cart-plus-fill"></i> Agregar al Carrito
+                    </button>
+                </div>
+            </div>
+
+            <!-- Product 2 - White T-shirt -->
+            <div class="product-card">
+                <div class="product-image-container">
+                    <span class="product-badge">Nuevo</span>
+                    <img src="/img/white.jpeg" alt="KIKO Sand White T-Shirt" class="product-image">
+                </div>
+                <div class="product-info">
+                    <h3 class="product-name">Sand Kiko White</h3>
+                    <p class="product-description">Camiseta oversized en blanco puro con estampado de alto contraste. Diseño urbano con mensaje "Live The Life - Good is black". Estilo único que define tu personalidad.</p>
+                    <div class="product-price">$89.900 COP</div>
+                    <div class="product-sizes">
+                        <div class="size-option" onclick="selectSize(this)">S</div>
+                        <div class="size-option" onclick="selectSize(this)">M</div>
+                        <div class="size-option selected" onclick="selectSize(this)">L</div>
+                        <div class="size-option" onclick="selectSize(this)">XL</div>
+                    </div>
+                    <button class="shop-button" onclick="addToCart('Sand Kiko White', 89900, '/img/white.jpeg')">
+                        <i class="bi bi-cart-plus-fill"></i> Agregar al Carrito
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="nosotros" class="about">
+        <div class="about-content">
+            <h2>Sobre KIKO</h2>
+            <p>
+                KIKO nace de la pasión por el streetwear auténtico y el arte urbano. Cada pieza es diseñada 
+                con atención al detalle, fusionando la cultura callejera con estética contemporánea. 
+                Nuestra misión es crear ropa que cuente historias, que conecte con quienes buscan expresar 
+                su individualidad sin compromisos.
+            </p>
+            <p>
+                Creemos en la calidad sobre la cantidad. Cada diseño es una edición limitada, 
+                hecha para aquellos que aprecian lo exclusivo y lo auténtico.
+            </p>
+
+            <div class="about-stats">
+                <div class="stat-item">
+                    <div class="stat-number">100%</div>
+                    <div class="stat-label">Algodón Premium</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">2026</div>
+                    <div class="stat-label">Colección Exclusiva</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">24/7</div>
+                    <div class="stat-label">Atención al Cliente</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="contacto">
+        <div class="footer-content">
+            <div class="footer-section">
+                <h3>KIKO</h3>
+                <p>Streetwear premium que define tu estilo único. Diseños exclusivos para personas que buscan autenticidad.</p>
+            </div>
+            <div class="footer-section">
+                <h3>Enlaces Rápidos</h3>
+                <p><a href="#inicio">Inicio</a></p>
+                <p><a href="#coleccion">Colección</a></p>
+                <p><a href="#nosotros">Nosotros</a></p>
+                <p><a href="#contacto">Contacto</a></p>
+            </div>
+            <div class="footer-section">
+                <h3>Síguenos</h3>
+                <div class="social-links">
+                    <a href="https://www.instagram.com/k1ko45/?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw%3D%3D" target="_blank" title="Instagram">
+                        <i class="bi bi-instagram"></i>
+                    </a>
+                    <a href="https://www.facebook.com/profile.php?id=61588181068165" target="_blank" title="Facebook">
+                        <i class="bi bi-facebook"></i>
+                    </a>
+                    <a href="https://twitter.com" target="_blank" title="Twitter">
+                        <i class="bi bi-twitter-x"></i>
+                    </a>
+                    <a href="https://wa.me/573128462280" target="_blank" title="WhatsApp">
+                        <i class="bi bi-whatsapp"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="copyright">
+            <p>© 2026 KIKO Streetwear. Todos los derechos reservados. | Hecho con ❤️ en Colombia</p>
+        </div>
+    </footer>
+
+    <!-- Shopping Cart Sidebar -->
+    <div class="cart-sidebar" id="cartSidebar">
+        <div class="cart-header">
+            <h2>Mi Carrito</h2>
+            <i class="bi bi-x-lg close-cart" onclick="toggleCart()"></i>
+        </div>
+        <div class="cart-items" id="cartItems">
+            <div class="cart-empty">
+                <i class="bi bi-bag-x"></i>
+                <p>Tu carrito está vacío</p>
+            </div>
+        </div>
+        <div class="cart-footer" id="cartFooter" style="display: none;">
+            <div class="cart-total">
+                <span>Total:</span>
+                <span id="cartTotal">$0 COP</span>
+            </div>
+            <button class="checkout-button" onclick="checkout()">
+                <i class="bi bi-credit-card"></i> Proceder al Pago
+            </button>
+        </div>
+    </div>
+
+    <!-- Scroll to Top Button -->
+    <button class="scroll-top" onclick="scrollToTop()">
+        <i class="bi bi-arrow-up"></i>
+    </button>
+    <script src="script.js"></script>
+</body>
+</html>
