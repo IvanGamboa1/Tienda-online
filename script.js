@@ -164,7 +164,7 @@
 
         const total = cart.reduce((sum, item) => sum + item.price, 0);
 
-        let mensaje = ' *NUEVO PEDIDO KIKO*\n';
+        let mensaje = ' *NUEVO PEDIDO K1KO*\n';
         mensaje += '━━━━━━━━━━━━━━━━━━━━\n\n';
         mensaje += ' *Productos:*\n';
 
