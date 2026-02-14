@@ -157,7 +157,7 @@
         document.querySelectorAll('.product-card, .stat-item').forEach(elem => {
             observer.observe(elem);
         });
-        const WHATSAPP_NUMBER = '573132614474'; // código país + número sin +
+        const WHATSAPP_NUMBER = '573128462280'; // código país + número sin +
 
         function checkout() {
             if (cart.length === 0) return;
