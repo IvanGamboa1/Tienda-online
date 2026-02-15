@@ -2,7 +2,7 @@
 // ══════════════════════════════════════════
 //  CONFIGURACIÓN  (doc 4 = fuente principal)
 // ══════════════════════════════════════════
-const WHATSAPP_NUMBER = '573132614474';
+const WHATSAPP_NUMBER = '573128462280';
 const STOCK_MAX = 5;
 
 // Imágenes SVG inline para demo (reemplaza con img/black.jpeg y img/white.jpeg en producción)
