@@ -441,7 +441,7 @@ footer { padding: 5rem 5% 3rem; background: var(--primary-black); border-top: 1p
 .co-logo {
     font-family: 'Bebas Neue', sans-serif; font-size: 2rem; letter-spacing: 5px;
     background: linear-gradient(135deg, #fff 0%, #fbbf24 50%, #dc2626 100%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; -webkit-text-fill-color: transparent;
     background-size: 200% 200%; animation: shimmer 3s infinite;
 }
 .co-steps { display: flex; align-items: center; }
@@ -635,7 +635,7 @@ footer { padding: 5rem 5% 3rem; background: var(--primary-black); border-top: 1p
     display:flex; justify-content:space-between; align-items:baseline;
     border-bottom:1px solid rgba(251,191,36,0.15); padding-bottom:1rem;
 }
-.co-summary-title span { font-family:'Montserrat',sans-serif; font-size:0.78rem; color:#555; font-weight:500; letter-spacing:0; }
+.co-summary-title span { font-family:'Montserrat',sans-serif; font-size:0.78rem; color:#ffffff; font-weight:500; letter-spacing:0; }
 .co-summary-item { display:flex; align-items:center; gap:1rem; margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid rgba(255,255,255,0.06); }
 .co-summary-item img { width:58px; height:58px; object-fit:cover; border:1px solid rgba(251,191,36,0.2); }
 .co-summary-item-info { flex:1; }
@@ -643,7 +643,7 @@ footer { padding: 5rem 5% 3rem; background: var(--primary-black); border-top: 1p
 .co-summary-item-size  { font-size:0.72rem; color:#666; }
 .co-summary-item-price { font-size:0.88rem; font-weight:700; color:var(--accent-gold); }
 .co-summary-divider { height:1px; background:rgba(255,255,255,0.08); margin:1rem 0; }
-.co-summary-row { display:flex; justify-content:space-between; margin-bottom:0.6rem; font-size:0.85rem; color:#666; }
+.co-summary-row { display:flex; justify-content:space-between; margin-bottom:0.6rem; font-size:0.85rem; color:#ffffff; }
 .co-summary-row.total { font-family:'Poppins',sans-serif; font-weight:900; font-size:1.1rem; color:#fff; margin-top:0.8rem; padding-top:0.8rem; border-top:1px solid rgba(251,191,36,0.2); }
 .co-summary-row.total span:last-child { color:var(--accent-gold); }
 .co-green { color:#25D366; font-weight:600; }
@@ -692,7 +692,7 @@ footer { padding: 5rem 5% 3rem; background: var(--primary-black); border-top: 1p
     .modal-close i { font-size:1.1rem; }
     .modal-add-cart { padding:1.2rem; font-size:0.88rem; letter-spacing:1.5px; }
     .co-body { grid-template-columns:1fr; }
-    .co-right { border-left:none; border-top:1px solid rgba(255,255,255,0.1); padding:1.5rem; }
+    .co-right { border-left:none; border-top:1px solid rgba(255, 0, 0, 0.1); padding:1.5rem; }
     .co-steps { gap:2px; }
     .co-step-line { width:20px; }
     .co-row { grid-template-columns:1fr; gap:0; }
