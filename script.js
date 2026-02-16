@@ -1,3 +1,46 @@
+const SUPABASE_URL = "https://oasuoihjkoaaxajwjleo.supabase.co";
+const SUPABASE_KEY = "sb_publishable_f_LGWDnVb0Gu7oM4NV2imA_iuNmon1I";
+var supabase = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+async function syncStockFromSupabase() {
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, stock");
+
+  if (error) {
+    console.error("Error trayendo stock:", error);
+    return;
+  }
+
+  data.forEach(productDB => {
+    if (products[productDB.id]) {
+      products[productDB.id].stock = productDB.stock;
+    }
+  });
+
+  console.log("Stock sincronizado ✅");
+  updateProductCards();
+}
+
+supabase
+  .channel('stock-changes')
+  .on(
+    'postgres_changes',
+    {
+      event: 'UPDATE',
+      schema: 'public',
+      table: 'products'
+    },
+    (payload) => {
+      console.log('Cambio detectado en stock:', payload);
+      syncStockFromSupabase();
+    }
+  )
+  .subscribe();
+
+
 // ══════════════════════════════════════════
 //  CONFIGURACIÓN  (doc 4 = fuente principal)
 // ══════════════════════════════════════════
@@ -351,8 +394,20 @@ function selectPay(label, method) {
     else if (method==='contraentrega') { ai.style.display='block'; document.getElementById('altInfoText').textContent='Pagas en efectivo al recibir. Domiciliario en 1 día hábil. Sin costo adicional.'; }
 }
 
-function confirmOrder() {
-    if (!validateStep(3)) return;
+async function confirmOrder() {
+  if (!validateStep(3)) return;
+
+  // 🔥 DESCONTAR STOCK EN SUPABASE
+  for (let item of cart) {
+    await descontarStockSupabase(item.productId, item.qty);
+  }
+
+  // 🔥 Volver a sincronizar stock en la web
+  await syncStockFromSupabase();
+
+  // -----------------------------
+  // TODO TU CÓDIGO ORIGINAL ABAJO
+  // -----------------------------
     const g  = id => document.getElementById(id).value.trim();
     const nombre=g('co-nombre'); const apellido=g('co-apellido'); const email=g('co-email');
     const celular=g('co-celular'); const tipoDoc=g('co-tipoDoc'); const numDoc=g('co-numDoc');
@@ -374,8 +429,14 @@ function confirmOrder() {
     if (ref) msg+=`• Ref/Comprobante: ${ref}\n`;
     msg+=`\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n*TOTAL: $${total.toLocaleString('es-CO')} COP*\n━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nPedido confirmado. Pronto te contactamos.\nK1KO Streetwear · Colombia`;
     window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`, '_blank');
-    closeCheckout();
+
+  // Vaciar carrito después de comprar
+  cart = [];
+  updateCart();
+
+  closeCheckout();
 }
+
 
 // ══════════════════════════════════════════
 //  UI — menú, cursor, scroll
@@ -412,6 +473,43 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
 document.addEventListener('keydown', e => { if(e.key==='Escape'){closeProductModal();closeCheckout();} });
 document.getElementById('productModal').addEventListener('click', function(e){if(e.target===this)closeProductModal();});
 document.getElementById('checkoutOverlay').addEventListener('click', function(e){if(e.target===this)closeCheckout();});
+async function descontarStockSupabase(productId, cantidad) {
+  try {
+    console.log("ID recibido:", productId);
+    // Traer stock actual
+    const { data, error } = await supabase
+      .from("products")
+      .select("stock")
+      .eq("id", productId)
+      .single();
+
+    if (error) {
+      console.error("Error obteniendo stock:", error);
+      return;
+    }
+
+    const nuevoStock = Math.max(data.stock - cantidad, 0);
+
+    // Actualizar en Supabase
+    const { error: updateError } = await supabase
+      .from("products")
+      .update({ stock: nuevoStock })
+      .eq("id", productId);
+
+    if (updateError) {
+      console.error("Error actualizando stock:", updateError);
+    } else {
+      console.log(`Stock actualizado para ${productId}: ${nuevoStock}`);
+    }
+
+  } catch (err) {
+    console.error("Error general stock:", err);
+  }
+}
 
 // ★ INICIALIZAR
-window.addEventListener('DOMContentLoaded', () => { updateProductCards(); });
+window.addEventListener('DOMContentLoaded', () => { 
+   syncStockFromSupabase();
+});
+
+
