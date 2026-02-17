@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>K1KO — Admin Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="icon" type="image/png" href="img/logo.jpeg">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="glow gr"></div>
+  <div class="glow gg"></div>
+  <div class="login-box">
+    <div class="login-badge"><i class="bi bi-shield-lock-fill"></i> Acceso Restringido</div>
+    <div class="login-logo">K1KO</div>
+    <div class="login-sub">Panel de Administración</div>
+
+    <div class="campo">
+      <label>Correo electrónico</label>
+      <div class="irow">
+        <i class="bi bi-envelope-fill ico"></i>
+        <input type="email" id="inEmail" placeholder="admin@k1ko.com" autocomplete="username">
+      </div>
+      <span class="campo-err" id="eEmail"></span>
+    </div>
+
+    <div class="campo">
+      <label>Contraseña</label>
+      <div class="irow">
+        <i class="bi bi-lock-fill ico"></i>
+        <input type="password" id="inPass" placeholder="••••••••" autocomplete="current-password">
+        <button class="btn-ojo" type="button" id="btnOjo">
+          <i class="bi bi-eye-fill" id="iOjo"></i>
+        </button>
+      </div>
+      <span class="campo-err" id="ePass"></span>
+    </div>
+
+    <div class="alerta" id="alerta">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <span id="alertaTxt">Credenciales incorrectas.</span>
+    </div>
+
+    <button class="btn-login" id="btnLogin" type="button">
+      <span class="txt"><i class="bi bi-box-arrow-in-right"></i> Ingresar al panel</span>
+    </button>
+  </div>
+</div>
+
+
+<!-- DASHBOARD -->
+<div id="dash">
+  <aside class="sidebar">
+    <div class="sb-head">
+      <div class="sb-logo">K1KO</div>
+      <div class="sb-sub">Admin Panel</div>
+    </div>
+    <nav class="sb-nav">
+      <div class="nav-lbl">Principal</div>
+      <button class="nav-btn on"  data-v="overview"><i class="bi bi-grid-fill"></i> Dashboard</button>
+      <button class="nav-btn"     data-v="stock"><i class="bi bi-box-seam-fill"></i> Stock</button>
+      <button class="nav-btn"     data-v="productos"><i class="bi bi-tshirt"></i> Productos</button>
+      <button class="nav-btn"     data-v="pedidos"><i class="bi bi-receipt"></i> Pedidos</button>
+      <div class="nav-lbl">Config</div>
+      <button class="nav-btn"     data-v="config"><i class="bi bi-gear-fill"></i> Configuración</button>
+    </nav>
+    <div class="sb-foot">
+      <div class="chip">
+        <div class="chip-av" id="chipAv">A</div>
+        <div class="chip-info">
+          <div class="chip-n" id="chipN">Admin</div>
+          <div class="chip-r">SUPERADMIN</div>
+        </div>
+        <button class="btn-out" id="btnOut" title="Cerrar sesión">
+          <i class="bi bi-box-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="vtit">DASHBOARD</h1>
+        <p id="vsub">Resumen general · K1KO Streetwear 2026</p>
+      </div>
+      <div class="live"><div class="dot"></div> En vivo</div>
+    </div>
+
+    <!-- OVERVIEW -->
+    <section class="vista on" id="v-overview">
+      <div class="stats">
+        <div class="st g"><i class="bi bi-currency-dollar st-bg"></i><div class="st-l">Ventas totales</div><div class="st-v" id="sv-ven">$0</div><div class="st-n" id="sv-ven-n">—</div></div>
+        <div class="st e"><i class="bi bi-box-seam st-bg"></i><div class="st-l">Stock total</div><div class="st-v" id="sv-stk">—</div><div class="st-n">Unidades disponibles</div></div>
+        <div class="st r"><i class="bi bi-bag-check st-bg"></i><div class="st-l">Pedidos</div><div class="st-v" id="sv-ped">—</div><div class="st-n">Totales registrados</div></div>
+        <div class="st b"><i class="bi bi-grid st-bg"></i><div class="st-l">Productos</div><div class="st-v">2</div><div class="st-n">En catálogo activo</div></div>
+      </div>
+      <div class="v-head"><h2>INVENTARIO RÁPIDO</h2><p>Estado actual del stock</p></div>
+      <div class="sgrid" id="g-overview"><div class="ldmsg">Cargando stock...</div></div>
+    </section>
+
+    <!-- STOCK -->
+    <section class="vista" id="v-stock">
+      <div class="v-head"><h2>GESTIÓN DE STOCK</h2><p>Usa + / − y luego Guardar · Cambios en tiempo real</p></div>
+      <div class="sgrid" id="g-stock"><div class="ldmsg">Cargando stock...</div></div>
+    </section>
+
+    <!-- PRODUCTOS -->
+    <section class="vista" id="v-productos">
+      <div class="v-head"><h2>AGREGAR PRODUCTO</h2><p>Completa los datos y sube la foto de la camisa</p></div>
+      <div class="form-prod">
+        <div class="foto-zona" id="fotoWrap" onclick="document.getElementById('fotoInput').click()">
+          <img id="fotoPrev" src="" alt="">
+          <div class="foto-hint">
+            <i class="bi bi-camera-fill"></i>
+            <span>Haz clic para subir foto</span>
+            <small>JPG, PNG, WEBP · Max 5MB</small>
+          </div>
+          <input type="file" id="fotoInput" accept="image/*" style="display:none">
+        </div>
+        <div class="form-campos">
+          <div class="campo">
+            <label>Nombre del producto</label>
+            <div class="irow"><i class="bi bi-tag-fill ico"></i><input type="text" id="pNombre" placeholder="Ej: Sand K1KO Red"></div>
+          </div>
+          <div class="campo">
+            <label>Precio (COP)</label>
+            <div class="irow"><i class="bi bi-currency-dollar ico"></i><input type="number" id="pPrecio" placeholder="Ej: 89900"></div>
+          </div>
+          <div class="campo">
+            <label>Stock inicial</label>
+            <div class="irow"><i class="bi bi-box-seam-fill ico"></i><input type="number" id="pStock" placeholder="Ej: 10" min="0"></div>
+          </div>
+          <button class="btn-agregar" id="btnAgregar">
+            <i class="bi bi-plus-circle-fill"></i> Agregar producto
+          </button>
+        </div>
+      </div>
+      <div class="v-head" style="margin-top:2.5rem"><h2>CATÁLOGO ACTUAL</h2><p>Productos publicados · Eliminar quita la foto y el registro</p></div>
+      <div class="pgrid" id="g-productos"><div class="ldmsg">Cargando productos...</div></div>
+    </section>
+
+    <!-- PEDIDOS -->
+    <section class="vista" id="v-pedidos">
+      <div class="v-head"><h2>PEDIDOS RECIENTES</h2><p>Historial de compras enviadas por WhatsApp</p></div>
+      <div class="tw">
+        <table class="dt">
+          <thead><tr><th>ID</th><th>Cliente</th><th>Producto</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead>
+          <tbody id="tbody"><tr><td colspan="6" style="text-align:center;padding:2rem;color:#444">Cargando...</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- CONFIG -->
+    <section class="vista" id="v-config">
+      <div class="v-head"><h2>CONFIGURACIÓN</h2><p>Ajustes generales de la tienda</p></div>
+      <div class="cgrid">
+        <div class="ccard">
+          <div class="ctit"><i class="bi bi-shop"></i> Datos de la tienda</div>
+          <div class="campo"><label>Nombre</label><div class="irow"><i class="bi bi-tag-fill ico"></i><input type="text" id="cNom" value="K1KO Streetwear"></div></div>
+          <div class="campo"><label>WhatsApp</label><div class="irow"><i class="bi bi-whatsapp ico"></i><input type="text" id="cWa" value="573128462280"></div></div>
+          <div class="campo"><label>Ciudad de despacho</label><div class="irow"><i class="bi bi-geo-alt-fill ico"></i><input type="text" id="cCiu" value="Buenaventura, Valle del Cauca"></div></div>
+          <button class="bact" id="btnCfg"><i class="bi bi-floppy-fill"></i> Guardar cambios</button>
+        </div>
+        <div class="ccard">
+          <div class="ctit"><i class="bi bi-key-fill"></i> Cambiar contraseña</div>
+          <div class="campo"><label>Nueva contraseña</label><div class="irow"><i class="bi bi-lock-fill ico"></i><input type="password" id="cP1" placeholder="Mínimo 8 caracteres"></div></div>
+          <div class="campo"><label>Confirmar</label><div class="irow"><i class="bi bi-lock-fill ico"></i><input type="password" id="cP2" placeholder="Repite la contraseña"></div></div>
+          <button class="bact" id="btnPass"><i class="bi bi-shield-lock-fill"></i> Actualizar contraseña</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"><i id="tIco"></i><span id="tMsg"></span></div>
+<script src="admin.js"></script>
+</body>
+</html>
