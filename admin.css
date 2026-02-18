@@ -230,7 +230,7 @@ body { font-family:'Montserrat',sans-serif; background:var(--black); color:var(-
 .dt { width:100%; border-collapse:collapse; }
 .dt thead { background:var(--deep); }
 .dt th { padding:.9rem 1.2rem; text-align:left; font-size:.6rem; font-weight:700; letter-spacing:2.5px; text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--border); white-space:nowrap; }
-.dt td { padding:.9rem 1.2rem; font-size:.82rem; color:var(--sub); border-bottom:1px solid rgba(255,255,255,.03); vertical-align:middle; }
+.dt td { padding:.9rem 1.2rem; font-size:.9rem; color:var(--sub); border-bottom:1px solid rgba(255,255,255,.03); vertical-align:middle; white-space:normal; word-break:break-word; }
 .dt tr:last-child td { border-bottom:none; }
 .tr-pedido { cursor:pointer; transition:background .15s; }
 .tr-pedido:hover td { background:rgba(255,255,255,.03); color:var(--text); }
@@ -338,6 +338,31 @@ body { font-family:'Montserrat',sans-serif; background:var(--black); color:var(-
 .m-btn-envio:hover { transform:translateY(-2px); box-shadow:0 8px 20px rgba(56,189,248,.3); }
 .m-btn-cancel { background:rgba(220,38,38,.1); border:1px solid rgba(220,38,38,.3); color:#f87171; }
 .m-btn-cancel:hover { background:rgba(220,38,38,.2); border-color:rgba(220,38,38,.6); }
+
+/* Botón de acción pequeño en la tabla */
+.pbtn {
+  padding:.35rem .6rem; background:linear-gradient(135deg,var(--gold),#d97706); border:none; color:#0a0a0a; font-weight:800; font-size:.72rem; border-radius:6px; cursor:pointer; transition:all .18s; }
+.pbtn:hover { transform:translateY(-2px); box-shadow:0 8px 18px rgba(219, 147, 6, .12); }
+
+/* Mejor experiencia de scroll en móviles */
+.tw { -webkit-overflow-scrolling: touch; }
+
+/* Responsive: tabla -> tarjetas en pantallas pequeñas */
+@media(max-width:680px) {
+  .dt thead { display:none; }
+  .dt tr { display:block; border:1px solid var(--border); margin-bottom:.9rem; padding:.6rem; background:var(--card); }
+  .dt td { display:flex; justify-content:space-between; padding:.6rem .7rem; border-bottom:none; }
+  .dt td::before { display:inline-block; color:var(--muted); font-size:.72rem; font-weight:700; margin-right:.6rem; text-transform:uppercase; }
+  .dt td:nth-child(1)::before { content:'ID'; }
+  .dt td:nth-child(2)::before { content:'Cliente'; }
+  .dt td:nth-child(3)::before { content:'Productos'; }
+  .dt td:nth-child(4)::before { content:'Total'; }
+  .dt td:nth-child(5)::before { content:'Estado'; }
+  .dt td:nth-child(6)::before { content:'Fecha / Acciones'; }
+  .cliente-cell { flex-direction:row; align-items:center; gap:.6rem; }
+  .cli-nom { font-size:.9rem; }
+  .cli-tel { font-size:.78rem; }
+}
 
 /* Datos del pedido */
 .modal-data-grid { display:flex; flex-direction:column; gap:.5rem; }
