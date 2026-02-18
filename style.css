@@ -719,7 +719,8 @@ footer { padding: 5rem 5% 3rem; background: var(--primary-black); border-top: 1p
 .btn-admin {
   position: fixed;
   bottom: 1.5rem;
-  right: 1.5rem;
+    left: 1.5rem;
+    right: auto;
   width: 42px;
   height: 42px;
   background: rgba(255, 0, 0, 0.85);
@@ -733,7 +734,7 @@ footer { padding: 5rem 5% 3rem; background: var(--primary-black); border-top: 1p
   text-decoration: none;
   backdrop-filter: blur(8px);
   transition: all 0.3s ease;
-  z-index: 999;
+    z-index: 1001;
 }
 
 .btn-admin:hover {
@@ -741,4 +742,27 @@ footer { padding: 5rem 5% 3rem; background: var(--primary-black); border-top: 1p
   border-color: rgba(251, 191, 36, 0.3);
   background: rgba(251, 191, 36, 0.08);
   box-shadow: 0 0 16px rgba(251, 191, 36, 0.15);
+}
+
+/* Asegurar posición en móviles y evitar solapamientos */
+@media (max-width: 900px) {
+    .btn-admin {
+        left: 18px;
+        bottom: 18px;
+        width: 46px;
+        height: 46px;
+        font-size: 1.05rem;
+        z-index: 1002;
+    }
+}
+
+@media (max-width: 480px) {
+    .btn-admin {
+        left: 14px;
+        bottom: 14px;
+        width: 44px;
+        height: 44px;
+        font-size: 1rem;
+        z-index: 1003;
+    }
 }
