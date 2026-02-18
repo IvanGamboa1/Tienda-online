@@ -20,7 +20,6 @@
     <div class="login-badge"><i class="bi bi-shield-lock-fill"></i> Acceso Restringido</div>
     <div class="login-logo">K1KO</div>
     <div class="login-sub">Panel de Administración</div>
-
     <div class="campo">
       <label>Correo electrónico</label>
       <div class="irow">
@@ -29,30 +28,24 @@
       </div>
       <span class="campo-err" id="eEmail"></span>
     </div>
-
     <div class="campo">
       <label>Contraseña</label>
       <div class="irow">
         <i class="bi bi-lock-fill ico"></i>
         <input type="password" id="inPass" placeholder="password" autocomplete="current-password">
-        <button class="btn-ojo" type="button" id="btnOjo">
-          <i class="bi bi-eye-fill" id="iOjo"></i>
-        </button>
+        <button class="btn-ojo" type="button" id="btnOjo"><i class="bi bi-eye-fill" id="iOjo"></i></button>
       </div>
       <span class="campo-err" id="ePass"></span>
     </div>
-
     <div class="alerta" id="alerta">
       <i class="bi bi-exclamation-triangle-fill"></i>
       <span id="alertaTxt">Credenciales incorrectas.</span>
     </div>
-
     <button class="btn-login" id="btnLogin" type="button">
       <span class="txt"><i class="bi bi-box-arrow-in-right"></i> Ingresar al panel</span>
     </button>
   </div>
 </div>
-
 
 <!-- DASHBOARD -->
 <div id="dash">
@@ -63,12 +56,15 @@
     </div>
     <nav class="sb-nav">
       <div class="nav-lbl">Principal</div>
-      <button class="nav-btn on"  data-v="overview"><i class="bi bi-grid-fill"></i> Dashboard</button>
-      <button class="nav-btn"     data-v="stock"><i class="bi bi-box-seam-fill"></i> Stock</button>
-      <button class="nav-btn"     data-v="productos"><i class="bi bi-tshirt"></i> Productos</button>
-      <button class="nav-btn"     data-v="pedidos"><i class="bi bi-receipt"></i> Pedidos</button>
+      <button class="nav-btn on" data-v="overview"><i class="bi bi-grid-fill"></i> Dashboard</button>
+      <button class="nav-btn" data-v="stock"><i class="bi bi-box-seam-fill"></i> Stock</button>
+      <button class="nav-btn" data-v="productos"><i class="bi bi-tshirt"></i> Productos</button>
+      <button class="nav-btn" data-v="pedidos" style="position:relative;">
+        <i class="bi bi-receipt"></i> Pedidos
+        <span class="badge-nav" id="badge-pedidos" style="display:none;">0</span>
+      </button>
       <div class="nav-lbl">Config</div>
-      <button class="nav-btn"     data-v="config"><i class="bi bi-gear-fill"></i> Configuración</button>
+      <button class="nav-btn" data-v="config"><i class="bi bi-gear-fill"></i> Configuración</button>
     </nav>
     <div class="sb-foot">
       <div class="chip">
@@ -77,9 +73,7 @@
           <div class="chip-n" id="chipN">Admin</div>
           <div class="chip-r">SUPERADMIN</div>
         </div>
-        <button class="btn-out" id="btnOut" title="Cerrar sesión">
-          <i class="bi bi-box-arrow-right"></i>
-        </button>
+        <button class="btn-out" id="btnOut" title="Cerrar sesión"><i class="bi bi-box-arrow-right"></i></button>
       </div>
     </div>
   </aside>
@@ -125,34 +119,48 @@
           <input type="file" id="fotoInput" accept="image/*" style="display:none">
         </div>
         <div class="form-campos">
-          <div class="campo">
-            <label>Nombre del producto</label>
-            <div class="irow"><i class="bi bi-tag-fill ico"></i><input type="text" id="pNombre" placeholder="Ej: Sand K1KO Red"></div>
-          </div>
-          <div class="campo">
-            <label>Precio (COP)</label>
-            <div class="irow"><i class="bi bi-currency-dollar ico"></i><input type="number" id="pPrecio" placeholder="Ej: 89900"></div>
-          </div>
-          <div class="campo">
-            <label>Stock inicial</label>
-            <div class="irow"><i class="bi bi-box-seam-fill ico"></i><input type="number" id="pStock" placeholder="Ej: 10" min="0"></div>
-          </div>
-          <button class="btn-agregar" id="btnAgregar">
-            <i class="bi bi-plus-circle-fill"></i> Agregar producto
-          </button>
+          <div class="campo"><label>Nombre del producto</label><div class="irow"><i class="bi bi-tag-fill ico"></i><input type="text" id="pNombre" placeholder="Ej: Sand K1KO Red"></div></div>
+          <div class="campo"><label>Precio (COP)</label><div class="irow"><i class="bi bi-currency-dollar ico"></i><input type="number" id="pPrecio" placeholder="Ej: 89900"></div></div>
+          <div class="campo"><label>Stock inicial</label><div class="irow"><i class="bi bi-box-seam-fill ico"></i><input type="number" id="pStock" placeholder="Ej: 10" min="0"></div></div>
+          <button class="btn-agregar" id="btnAgregar"><i class="bi bi-plus-circle-fill"></i> Agregar producto</button>
         </div>
       </div>
-      <div class="v-head" style="margin-top:2.5rem"><h2>CATÁLOGO ACTUAL</h2><p>Productos publicados · Eliminar quita la foto y el registro</p></div>
+      <div class="v-head" style="margin-top:2.5rem"><h2>CATÁLOGO ACTUAL</h2><p>Productos publicados</p></div>
       <div class="pgrid" id="g-productos"><div class="ldmsg">Cargando productos...</div></div>
     </section>
 
     <!-- PEDIDOS -->
     <section class="vista" id="v-pedidos">
-      <div class="v-head"><h2>PEDIDOS RECIENTES</h2><p>Historial de compras enviadas por WhatsApp</p></div>
+      <div class="pedidos-toolbar">
+        <div class="filtros-wrap">
+          <button class="filtro-btn on" data-estado="todos">Todos</button>
+          <button class="filtro-btn" data-estado="pendiente"><span class="filtro-dot dot-pendiente"></span>Pendientes</button>
+          <button class="filtro-btn" data-estado="confirmado"><span class="filtro-dot dot-confirmado"></span>Confirmados</button>
+          <button class="filtro-btn" data-estado="enviado"><span class="filtro-dot dot-enviado"></span>Enviados</button>
+          <button class="filtro-btn" data-estado="cancelado"><span class="filtro-dot dot-cancelado"></span>Cancelados</button>
+        </div>
+        <div class="busqueda-wrap">
+          <i class="bi bi-search"></i>
+          <input type="text" id="buscarPedido" placeholder="Buscar por nombre, ID, celular...">
+        </div>
+      </div>
+
       <div class="tw">
         <table class="dt">
-          <thead><tr><th>ID</th><th>Cliente</th><th>Producto</th><th>Total</th><th>Estado</th><th>Fecha</th></tr></thead>
-          <tbody id="tbody"><tr><td colspan="6" style="text-align:center;padding:2rem;color:#444">Cargando...</td></tr></tbody>
+          <thead>
+            <tr>
+              <th>Pedido</th>
+              <th>Cliente</th>
+              <th>Productos</th>
+              <th>Total</th>
+              <th>Pago</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody id="tbody">
+            <tr><td colspan="7" class="td-loading"><div class="ld-spin"></div>Cargando...</td></tr>
+          </tbody>
         </table>
       </div>
     </section>
@@ -176,8 +184,87 @@
         </div>
       </div>
     </section>
-
   </main>
+</div>
+
+<!-- ══════════════════════════════════════
+     MODAL DETALLE PEDIDO
+══════════════════════════════════════ -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-pedido">
+
+    <!-- Header modal -->
+    <div class="modal-header">
+      <div class="modal-header-left">
+        <div class="modal-order-id" id="m-order-id">KK-000000</div>
+        <div class="modal-fecha" id="m-fecha">—</div>
+      </div>
+      <div class="modal-header-right">
+        <div id="m-estado"></div>
+        <button class="modal-close-btn" id="btnCerrarModal"><i class="bi bi-x-lg"></i></button>
+      </div>
+    </div>
+
+    <div class="modal-body">
+      <!-- Columna izquierda -->
+      <div class="modal-col">
+
+        <!-- Productos del pedido -->
+        <div class="modal-section">
+          <div class="modal-section-title"><i class="bi bi-bag-fill"></i> Productos</div>
+          <div id="m-productos"></div>
+          <div class="modal-total-row">
+            <span>TOTAL DEL PEDIDO</span>
+            <span id="m-total" class="modal-total-val">$0 COP</span>
+          </div>
+        </div>
+
+        <!-- Acciones -->
+        <div class="modal-section">
+          <div class="modal-section-title"><i class="bi bi-lightning-fill"></i> Acciones</div>
+          <div class="m-acciones" id="m-acciones"></div>
+        </div>
+
+      </div>
+
+      <!-- Columna derecha -->
+      <div class="modal-col">
+
+        <!-- Datos del cliente -->
+        <div class="modal-section">
+          <div class="modal-section-title"><i class="bi bi-person-fill"></i> Cliente</div>
+          <div class="modal-data-grid">
+            <div class="mdata"><span class="mdata-l">Nombre</span><span class="mdata-v" id="m-cliente">—</span></div>
+            <div class="mdata"><span class="mdata-l">Celular</span><span class="mdata-v" id="m-celular">—</span></div>
+            <div class="mdata"><span class="mdata-l">Email</span><span class="mdata-v" id="m-email">—</span></div>
+            <div class="mdata"><span class="mdata-l">Documento</span><span class="mdata-v" id="m-doc">—</span></div>
+            <div class="mdata"><span class="mdata-l">Facturar</span><span class="mdata-v" id="m-factura">—</span></div>
+          </div>
+        </div>
+
+        <!-- Datos de envío -->
+        <div class="modal-section">
+          <div class="modal-section-title"><i class="bi bi-truck"></i> Envío</div>
+          <div class="modal-data-grid">
+            <div class="mdata"><span class="mdata-l">Barrio</span><span class="mdata-v" id="m-barrio">—</span></div>
+            <div class="mdata"><span class="mdata-l">Dirección</span><span class="mdata-v" id="m-direccion">—</span></div>
+            <div class="mdata"><span class="mdata-l">Adicional</span><span class="mdata-v" id="m-adicional">—</span></div>
+            <div class="mdata"><span class="mdata-l">Recibe</span><span class="mdata-v" id="m-recibe">—</span></div>
+          </div>
+        </div>
+
+        <!-- Pago -->
+        <div class="modal-section">
+          <div class="modal-section-title"><i class="bi bi-credit-card-fill"></i> Pago</div>
+          <div class="modal-data-grid">
+            <div class="mdata"><span class="mdata-l">Método</span><span class="mdata-v" id="m-metodo">—</span></div>
+            <div class="mdata"><span class="mdata-l">Referencia</span><span class="mdata-v" id="m-ref">—</span></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"><i id="tIco"></i><span id="tMsg"></span></div>

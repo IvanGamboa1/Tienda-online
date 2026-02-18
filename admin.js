@@ -1,43 +1,58 @@
 /* ═══════════════════════════════════════════════
-   SUPABASE — pon tus credenciales aquí
+   SUPABASE
 ═══════════════════════════════════════════════ */
 const SB_URL = "https://oasuoihjkoaaxajwjleo.supabase.co";
 const SB_KEY = "sb_publishable_f_LGWDnVb0Gu7oM4NV2imA_iuNmon1I";
 const sb = supabase.createClient(SB_URL, SB_KEY);
 
-/* estado local del stock */
 const SL = {};
+let pedidosData = [];
+let pedidoSeleccionado = null;
 
 /* ═══════════════════════════════════════════════
-   ARRANQUE — todo se conecta aquí
+   ARRANQUE
 ═══════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async () => {
-
-  /* --- botones login --- */
   document.getElementById('btnLogin').onclick = doLogin;
   document.getElementById('btnOjo').onclick   = toggleOjo;
   document.getElementById('inEmail').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
   document.getElementById('inPass').addEventListener('keydown',  e => { if(e.key==='Enter') doLogin(); });
 
-  /* --- botones dashboard --- */
   document.getElementById('btnOut').onclick  = doLogout;
   document.getElementById('btnCfg').onclick  = guardarCfg;
   document.getElementById('btnPass').onclick = cambiarPass;
 
-  /* --- productos --- */
   document.getElementById('fotoInput')?.addEventListener('change', previewFoto);
   document.getElementById('btnAgregar')?.addEventListener('click', agregarProducto);
 
-  /* --- navegación --- */
   document.querySelectorAll('.nav-btn[data-v]').forEach(b => {
     b.onclick = () => irVista(b.dataset.v, b);
   });
 
-  /* --- sesión activa --- */
+  // Modal pedido — cerrar
+  document.getElementById('modalOverlay').addEventListener('click', function(e){
+    if(e.target === this) cerrarModalPedido();
+  });
+  document.getElementById('btnCerrarModal').addEventListener('click', cerrarModalPedido);
+
+  // Filtros pedidos
+  document.querySelectorAll('.filtro-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.filtro-btn').forEach(x => x.classList.remove('on'));
+      b.classList.add('on');
+      filtrarPedidos(b.dataset.estado);
+    });
+  });
+
+  // Buscar pedidos
+  document.getElementById('buscarPedido').addEventListener('input', e => {
+    buscarEnPedidos(e.target.value);
+  });
+
   try {
     const { data:{ session } } = await sb.auth.getSession();
     if (session) abrirDash(session.user);
-  } catch(e) { /* sin sesión */ }
+  } catch(e) {}
 });
 
 /* ═══════════════════════════════════════════════
@@ -48,19 +63,16 @@ async function doLogin() {
   const pass  = document.getElementById('inPass').value;
   const btn   = document.getElementById('btnLogin');
 
-  /* limpiar */
   document.getElementById('eEmail').textContent = '';
   document.getElementById('ePass').textContent  = '';
   document.getElementById('alerta').classList.remove('on');
 
-  /* validar */
   let ok = true;
   if (!email) { document.getElementById('eEmail').textContent='Ingresa tu correo.'; ok=false; }
   else if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ document.getElementById('eEmail').textContent='Correo inválido.'; ok=false; }
   if (!pass)  { document.getElementById('ePass').textContent='Ingresa tu contraseña.'; ok=false; }
   if (!ok) return;
 
-  /* spinner */
   btn.classList.add('spin');
   btn.disabled = true;
 
@@ -70,7 +82,7 @@ async function doLogin() {
   btn.disabled = false;
 
   if (error) {
-    document.getElementById('alertaTxt').textContent = 'Credenciales incorrectas. Verifica tu correo y contraseña.';
+    document.getElementById('alertaTxt').textContent = 'Credenciales incorrectas.';
     document.getElementById('alerta').classList.add('on');
     setTimeout(() => document.getElementById('alerta').classList.remove('on'), 4500);
     return;
@@ -83,22 +95,29 @@ async function doLogin() {
    ABRIR DASHBOARD
 ═══════════════════════════════════════════════ */
 function abrirDash(user) {
-  /* ocultar login */
   const ls = document.getElementById('loginScreen');
   ls.classList.add('out');
   setTimeout(() => { ls.style.display='none'; }, 520);
 
-  /* mostrar dash */
   document.getElementById('dash').classList.add('on');
 
-  /* info del admin */
   const nom = user.email.split('@')[0];
   document.getElementById('chipN').textContent  = nom;
   document.getElementById('chipAv').textContent = nom[0].toUpperCase();
 
-  /* cargar datos */
   cargarStock();
   cargarPedidos();
+
+  // Realtime: nuevos pedidos
+  sb.channel('new-orders')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
+      notificarNuevoPedido(payload.new);
+      cargarPedidos();
+    })
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, () => {
+      cargarPedidos();
+    })
+    .subscribe();
 }
 
 /* ═══════════════════════════════════════════════
@@ -121,7 +140,7 @@ const VISTAS = {
   overview:  ['DASHBOARD',     'Resumen general · K1KO Streetwear 2026'],
   stock:     ['STOCK',         'Actualiza inventario · Cambios en tiempo real'],
   productos: ['PRODUCTOS',     'Agrega o elimina productos del catálogo'],
-  pedidos:   ['PEDIDOS',       'Historial de compras por WhatsApp'],
+  pedidos:   ['PEDIDOS',       'Gestión y confirmación de pedidos'],
   config:    ['CONFIGURACIÓN', 'Ajustes de tienda y cuenta admin'],
 };
 
@@ -135,6 +154,7 @@ function irVista(key, btn) {
   document.getElementById('vtit').textContent = t;
   document.getElementById('vsub').textContent = s;
   if (key === 'productos') cargarProductos();
+  if (key === 'pedidos')   cargarPedidos();
 }
 
 /* ═══════════════════════════════════════════════
@@ -213,48 +233,329 @@ function statStock(prods) {
 }
 
 /* ═══════════════════════════════════════════════
-   PEDIDOS
+   PEDIDOS — CARGA PRINCIPAL
 ═══════════════════════════════════════════════ */
 async function cargarPedidos() {
-  const { data, error } = await sb.from('orders').select('*').order('created_at',{ascending:false}).limit(50);
-  const body = document.getElementById('tbody');
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = `<tr><td colspan="7" class="td-loading"><div class="ld-spin"></div>Cargando pedidos...</td></tr>`;
+
+  const { data, error } = await sb.from('orders').select('*').order('created_at', { ascending: false }).limit(100);
 
   if (error) {
-    body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#444">Crea la tabla <code style="color:#fbbf24">orders</code> en Supabase para ver pedidos aquí.</td></tr>`;
-    document.getElementById('sv-ped').textContent = '0';
-    document.getElementById('sv-ven').textContent = '$0';
-    return;
-  }
-  if (!data || data.length===0) {
-    body.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:2rem;color:#444">Sin pedidos aún</td></tr>`;
-    document.getElementById('sv-ped').textContent = '0';
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:#444">Error cargando pedidos: ${error.message}</td></tr>`;
     return;
   }
 
-  body.innerHTML = data.map(o => {
-    const st  = o.estado||'pendiente';
-    const cl  = st==='entregado'?'tok':st==='cancelado'?'tca':'tpe';
-    const ic  = st==='entregado'?'bi-check-circle-fill':st==='cancelado'?'bi-x-circle-fill':'bi-clock-fill';
-    const fe  = o.created_at ? new Date(o.created_at).toLocaleDateString('es-CO') : '—';
+  pedidosData = data || [];
+  actualizarStatsOverview(pedidosData);
+  renderizarPedidos(pedidosData);
+}
+
+function actualizarStatsOverview(data) {
+  const total    = data.reduce((s,o) => s+(Number(o.total)||0), 0);
+  const pedidos  = data.length;
+  const pendientes = data.filter(o => o.estado === 'pendiente').length;
+
+  const elVen  = document.getElementById('sv-ven');
+  const elPed  = document.getElementById('sv-ped');
+  const elVenN = document.getElementById('sv-ven-n');
+  if (elVen)  elVen.textContent  = '$'+total.toLocaleString('es-CO');
+  if (elPed)  elPed.textContent  = pedidos;
+  if (elVenN) elVenN.textContent = pendientes + ' pendiente'+(pendientes!==1?'s':'');
+
+  // Badge en sidebar
+  const badge = document.getElementById('badge-pedidos');
+  if (badge) {
+    badge.textContent = pendientes > 0 ? pendientes : '';
+    badge.style.display = pendientes > 0 ? 'flex' : 'none';
+  }
+}
+
+function renderizarPedidos(lista) {
+  const tbody = document.getElementById('tbody');
+
+  if (!lista || lista.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" class="td-empty"><i class="bi bi-inbox"></i><br>Sin pedidos aún</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = lista.map(o => {
+    const st  = o.estado || 'pendiente';
+    const cls = { pendiente:'tpe', confirmado:'tok', enviado:'tenv', cancelado:'tca' }[st] || 'tpe';
+    const ico = { pendiente:'bi-clock-fill', confirmado:'bi-check-circle-fill', enviado:'bi-truck', cancelado:'bi-x-circle-fill' }[st] || 'bi-clock-fill';
+    const lbl = { pendiente:'Pendiente', confirmado:'Confirmado', enviado:'Enviado', cancelado:'Cancelado' }[st] || st;
+    const fe  = o.created_at ? new Date(o.created_at).toLocaleDateString('es-CO', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
     const to  = o.total ? '$'+Number(o.total).toLocaleString('es-CO') : '—';
-    return `<tr>
-      <td><span class="oid">#${o.id}</span></td>
-      <td>${o.cliente||'—'}</td>
-      <td>${o.producto||'—'}</td>
-      <td style="color:var(--gold);font-weight:700">${to}</td>
-      <td><span class="tag ${cl}"><i class="bi ${ic}"></i> ${st}</span></td>
+    const esPendiente = st === 'pendiente';
+    return `
+    <tr class="tr-pedido ${esPendiente ? 'tr-pendiente' : ''}" onclick="abrirModalPedido('${o.id}')">
+      <td><span class="oid">${o.order_id || '#'+o.id}</span>${esPendiente ? '<span class="dot-nuevo"></span>' : ''}</td>
+      <td><div class="cliente-cell"><span class="cli-nom">${o.cliente || '—'}</span><span class="cli-tel">${o.celular || ''}</span></div></td>
+      <td><div class="prod-cell">${(o.productos_resumen || '—').split('\n').map(l => `<span>${l}</span>`).join('')}</div></td>
+      <td style="color:var(--gold);font-weight:800;font-family:'JetBrains Mono',monospace">${to}</td>
+      <td>${o.metodo_pago || '—'}</td>
+      <td><span class="tag ${cls}"><i class="bi ${ico}"></i> ${lbl}</span></td>
       <td>${fe}</td>
     </tr>`;
   }).join('');
-
-  document.getElementById('sv-ped').textContent = data.length;
-  const total = data.reduce((s,o)=>s+(Number(o.total)||0),0);
-  document.getElementById('sv-ven').textContent = '$'+total.toLocaleString('es-CO');
-  document.getElementById('sv-ven-n').textContent = data.length+' pedido'+(data.length!==1?'s':'');
 }
 
 /* ═══════════════════════════════════════════════
-   PRODUCTOS (nuevo)
+   FILTROS Y BÚSQUEDA
+═══════════════════════════════════════════════ */
+function filtrarPedidos(estado) {
+  if (!estado || estado === 'todos') {
+    renderizarPedidos(pedidosData);
+  } else {
+    renderizarPedidos(pedidosData.filter(p => p.estado === estado));
+  }
+}
+
+function buscarEnPedidos(termino) {
+  if (!termino) { renderizarPedidos(pedidosData); return; }
+  const t = termino.toLowerCase();
+  renderizarPedidos(pedidosData.filter(p =>
+    (p.cliente||'').toLowerCase().includes(t) ||
+    (p.order_id||'').toLowerCase().includes(t) ||
+    (p.celular||'').includes(t) ||
+    (p.barrio||'').toLowerCase().includes(t)
+  ));
+}
+
+/* ═══════════════════════════════════════════════
+   MODAL DETALLE PEDIDO
+═══════════════════════════════════════════════ */
+function abrirModalPedido(id) {
+  const pedido = pedidosData.find(p => String(p.id) === String(id));
+  if (!pedido) return;
+  pedidoSeleccionado = pedido;
+
+  // Header
+  document.getElementById('m-order-id').textContent  = pedido.order_id || '#'+pedido.id;
+  document.getElementById('m-fecha').textContent     = pedido.created_at ? new Date(pedido.created_at).toLocaleString('es-CO') : '—';
+
+  // Estado badge
+  const st  = pedido.estado || 'pendiente';
+  const cls = { pendiente:'tpe', confirmado:'tok', enviado:'tenv', cancelado:'tca' }[st] || 'tpe';
+  const ico = { pendiente:'bi-clock-fill', confirmado:'bi-check-circle-fill', enviado:'bi-truck', cancelado:'bi-x-circle-fill' }[st] || 'bi-clock-fill';
+  const lbl = { pendiente:'Pendiente', confirmado:'Confirmado', enviado:'Enviado', cancelado:'Cancelado' }[st] || st;
+  document.getElementById('m-estado').innerHTML = `<span class="tag ${cls}"><i class="bi ${ico}"></i> ${lbl}</span>`;
+
+  // Cliente
+  document.getElementById('m-cliente').textContent   = pedido.cliente || '—';
+  document.getElementById('m-celular').textContent   = pedido.celular || '—';
+  document.getElementById('m-email').textContent     = pedido.email || '—';
+  document.getElementById('m-doc').textContent       = `${pedido.tipo_doc || ''} ${pedido.num_doc || ''}`;
+  document.getElementById('m-factura').textContent   = pedido.tipo_factura || '—';
+
+  // Envío
+  document.getElementById('m-barrio').textContent    = pedido.barrio || '—';
+  document.getElementById('m-direccion').textContent = pedido.direccion || '—';
+  document.getElementById('m-adicional').textContent = pedido.direccion_adicional || 'No especificado';
+  document.getElementById('m-recibe').textContent    = pedido.recibe || '—';
+
+  // Pago
+  document.getElementById('m-metodo').textContent    = pedido.metodo_pago || '—';
+  document.getElementById('m-ref').textContent       = pedido.referencia_pago || 'Sin referencia';
+
+  // Productos
+  let prods = [];
+  try { prods = JSON.parse(pedido.productos_json || '[]'); } catch(e) {}
+  const prodHTML = prods.map(p => `
+    <div class="m-prod-item">
+      <div class="m-prod-img"><img src="img/${p.id}.jpeg" onerror="this.src=''" alt="${p.name}"><span class="m-prod-qty">x${p.qty}</span></div>
+      <div class="m-prod-info">
+        <div class="m-prod-name">${p.name}</div>
+        <div class="m-prod-det">Talla: <strong>${p.size}</strong> · $${Number(p.price).toLocaleString('es-CO')} c/u</div>
+      </div>
+      <div class="m-prod-sub">$${(p.price * p.qty).toLocaleString('es-CO')}</div>
+    </div>`).join('');
+  document.getElementById('m-productos').innerHTML = prodHTML || '<p style="color:#666">Sin detalle</p>';
+
+  // Total
+  document.getElementById('m-total').textContent = '$'+(Number(pedido.total)||0).toLocaleString('es-CO')+' COP';
+
+  // Botones de acción según estado
+  renderBotonesAccion(st);
+
+  document.getElementById('modalOverlay').classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+
+function renderBotonesAccion(estado) {
+  const zona = document.getElementById('m-acciones');
+  zona.innerHTML = '';
+
+  const cel = pedidoSeleccionado?.celular || '';
+
+  if (estado === 'pendiente') {
+    zona.innerHTML = `
+      <button class="m-btn m-btn-confirm" onclick="cambiarEstadoPedido('confirmado')">
+        <i class="bi bi-check-circle-fill"></i> Confirmar Pedido
+      </button>
+      <button class="m-btn m-btn-wa" onclick="enviarMensajeWA('confirmacion')">
+        <i class="bi bi-whatsapp"></i> Confirmar y notificar
+      </button>
+      <button class="m-btn m-btn-cancel" onclick="cambiarEstadoPedido('cancelado')">
+        <i class="bi bi-x-circle"></i> Cancelar Pedido
+      </button>`;
+  } else if (estado === 'confirmado') {
+    zona.innerHTML = `
+      <button class="m-btn m-btn-envio" onclick="cambiarEstadoPedido('enviado')">
+        <i class="bi bi-truck"></i> Marcar como Enviado
+      </button>
+      <button class="m-btn m-btn-wa" onclick="enviarMensajeWA('envio')">
+        <i class="bi bi-whatsapp"></i> Notificar envío al cliente
+      </button>
+      <button class="m-btn m-btn-cancel" onclick="cambiarEstadoPedido('cancelado')">
+        <i class="bi bi-x-circle"></i> Cancelar
+      </button>`;
+  } else if (estado === 'enviado') {
+    zona.innerHTML = `
+      <button class="m-btn m-btn-wa" onclick="enviarMensajeWA('entregado')">
+        <i class="bi bi-whatsapp"></i> Notificar entrega
+      </button>
+      <button class="m-btn m-btn-confirm" onclick="cambiarEstadoPedido('confirmado')">
+        <i class="bi bi-arrow-counterclockwise"></i> Volver a Confirmado
+      </button>`;
+  } else if (estado === 'cancelado') {
+    zona.innerHTML = `
+      <button class="m-btn m-btn-wa" onclick="enviarMensajeWA('cancelado')">
+        <i class="bi bi-whatsapp"></i> Notificar cancelación
+      </button>
+      <button class="m-btn m-btn-confirm" onclick="cambiarEstadoPedido('pendiente')">
+        <i class="bi bi-arrow-counterclockwise"></i> Reactivar pedido
+      </button>`;
+  }
+}
+
+function cerrarModalPedido() {
+  document.getElementById('modalOverlay').classList.remove('on');
+  document.body.style.overflow = 'auto';
+  pedidoSeleccionado = null;
+}
+
+/* ═══════════════════════════════════════════════
+   CAMBIAR ESTADO PEDIDO
+═══════════════════════════════════════════════ */
+async function cambiarEstadoPedido(nuevoEstado) {
+  if (!pedidoSeleccionado) return;
+
+  const { error } = await sb.from('orders')
+    .update({ estado: nuevoEstado })
+    .eq('id', pedidoSeleccionado.id);
+
+  if (error) {
+    toast('Error actualizando estado: '+error.message, 'fail');
+    return;
+  }
+
+  pedidoSeleccionado.estado = nuevoEstado;
+  const lbl = { pendiente:'Pendiente', confirmado:'Confirmado ✓', enviado:'Enviado 🚚', cancelado:'Cancelado' }[nuevoEstado];
+  toast(`Pedido marcado como: ${lbl}`, 'ok');
+
+  // Actualizar UI del modal
+  const cls = { pendiente:'tpe', confirmado:'tok', enviado:'tenv', cancelado:'tca' }[nuevoEstado] || 'tpe';
+  const ico = { pendiente:'bi-clock-fill', confirmado:'bi-check-circle-fill', enviado:'bi-truck', cancelado:'bi-x-circle-fill' }[nuevoEstado] || 'bi-clock-fill';
+  document.getElementById('m-estado').innerHTML = `<span class="tag ${cls}"><i class="bi ${ico}"></i> ${lbl}</span>`;
+  renderBotonesAccion(nuevoEstado);
+
+  // Recargar lista
+  await cargarPedidos();
+}
+
+/* ═══════════════════════════════════════════════
+   ENVIAR MENSAJE WHATSAPP AL CLIENTE
+═══════════════════════════════════════════════ */
+function enviarMensajeWA(tipo) {
+  if (!pedidoSeleccionado) return;
+  const p = pedidoSeleccionado;
+  const cel = (p.celular || '').replace(/\D/g, '');
+  if (!cel) { toast('El cliente no tiene celular registrado', 'fail'); return; }
+
+  const num = cel.startsWith('57') ? cel : '57'+cel;
+  const nombre = (p.cliente || 'cliente').split(' ')[0];
+  const orderId = p.order_id || '#'+p.id;
+  const total = '$'+(Number(p.total)||0).toLocaleString('es-CO')+' COP';
+
+  let prods = [];
+  try { prods = JSON.parse(p.productos_json || '[]'); } catch(e) {}
+  const listaProd = prods.map(x => `• ${x.name} · Talla ${x.size} · x${x.qty}`).join('\n');
+
+  let msg = '';
+
+  if (tipo === 'confirmacion') {
+    msg = `¡Hola ${nombre}! 👋\n\n`;
+    msg += `✅ *Tu pedido ha sido CONFIRMADO* 🎉\n\n`;
+    msg += `*K1KO Streetwear*\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    msg += `📦 *Pedido:* ${orderId}\n`;
+    msg += `💰 *Total:* ${total}\n\n`;
+    msg += `*Productos:*\n${listaProd}\n\n`;
+    msg += `📍 *Dirección de entrega:*\n${p.barrio} — ${p.direccion}\n`;
+    msg += `👤 Recibe: ${p.recibe}\n\n`;
+    msg += `🚚 Tu pedido llegará en *24 horas hábiles* en Buenaventura.\n\n`;
+    msg += `Cualquier duda escríbenos.\n*K1KO Streetwear* 🖤`;
+    // También cambiar estado a confirmado
+    cambiarEstadoPedido('confirmado');
+  } else if (tipo === 'envio') {
+    msg = `¡Hola ${nombre}! 🚚\n\n`;
+    msg += `*Tu pedido está en camino* ✈️\n\n`;
+    msg += `*K1KO Streetwear*\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    msg += `📦 *Pedido:* ${orderId}\n\n`;
+    msg += `*Productos enviados:*\n${listaProd}\n\n`;
+    msg += `📍 *Dirección:* ${p.barrio} — ${p.direccion}\n`;
+    msg += `👤 Recibe: ${p.recibe}\n\n`;
+    msg += `📱 Te contactaremos cuando lleguemos.\n*K1KO Streetwear* 🖤`;
+    cambiarEstadoPedido('enviado');
+  } else if (tipo === 'entregado') {
+    msg = `¡Hola ${nombre}! 🎉\n\n`;
+    msg += `*Tu pedido fue ENTREGADO exitosamente* ✅\n\n`;
+    msg += `*K1KO Streetwear*\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+    msg += `📦 Pedido: ${orderId}\n\n`;
+    msg += `Gracias por tu compra. Esperamos que ames tu ropa 🔥\n`;
+    msg += `¡Síguenos en Instagram @k1ko45 para ver nuevos drops!\n\n`;
+    msg += `*K1KO Streetwear* 🖤`;
+  } else if (tipo === 'cancelado') {
+    msg = `Hola ${nombre},\n\n`;
+    msg += `Lamentamos informarte que tu pedido *${orderId}* ha sido cancelado.\n\n`;
+    msg += `Si tienes dudas o quieres hacer un nuevo pedido, escríbenos con gusto te ayudamos.\n\n`;
+    msg += `*K1KO Streetwear* 🖤`;
+  }
+
+  window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
+  toast(`Mensaje preparado para ${nombre}`, 'ok');
+}
+
+/* ═══════════════════════════════════════════════
+   NOTIFICACIÓN NUEVO PEDIDO (realtime)
+═══════════════════════════════════════════════ */
+function notificarNuevoPedido(pedido) {
+  // Sonido
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
+    gain.gain.setValueAtTime(0.3, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.4);
+  } catch(e) {}
+
+  // Toast especial
+  const t = document.getElementById('toast');
+  document.getElementById('tMsg').textContent = `🛍️ Nuevo pedido de ${pedido.cliente || 'cliente'} · $${Number(pedido.total||0).toLocaleString('es-CO')} COP`;
+  t.className = 'toast nuevo on';
+  document.getElementById('tIco').className = 'bi bi-bag-check-fill';
+  clearTimeout(window._tt);
+  window._tt = setTimeout(() => t.classList.remove('on'), 6000);
+}
+
+/* ═══════════════════════════════════════════════
+   PRODUCTOS
 ═══════════════════════════════════════════════ */
 const STORAGE_URL = `${SB_URL}/storage/v1/object/public/products/`;
 
