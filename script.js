@@ -4,25 +4,60 @@ var supabase = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_KEY
 );
-async function syncStockFromSupabase() {
+async function cargarProductosDesdeSupabase() {
   const { data, error } = await supabase
     .from("products")
-    .select("id, stock");
+    .select("*");
 
   if (error) {
-    console.error("Error trayendo stock:", error);
+    console.error("Error cargando productos:", error);
     return;
   }
 
-  data.forEach(productDB => {
-    if (products[productDB.id]) {
-      products[productDB.id].stock = productDB.stock;
-    }
+  const grid = document.getElementById("productsGrid");
+  grid.innerHTML = "";
+
+  // Vaciar objeto local
+  for (let key in products) {
+    delete products[key];
+  }
+
+  data.forEach(prod => {
+
+    // Guardar en objeto products
+    products[prod.id] = {
+      id: prod.id,
+      name: prod.name,
+      price: prod.price,
+      image: prod.image,   // ← CORREGIDO
+      description: "",
+      itemNumber: `Item: ${prod.id}`,
+      stock: prod.stock
+    };
+
+    const card = document.createElement("div");
+    card.className = "product-card";
+    card.id = `card-${prod.id}`;
+    card.setAttribute("onclick", `openProductModal('${prod.id}')`);
+
+    card.innerHTML = `
+      <div class="product-image-container">
+        <span class="product-badge" id="badge-${prod.id}">Nuevo</span>
+        <img src="${prod.image}" alt="${prod.name}" class="product-image">
+      </div>
+      <div class="product-info">
+        <h3 class="product-name">${prod.name}</h3>
+        <div class="product-price">$${Number(prod.price).toLocaleString('es-CO')} COP</div>
+      </div>
+    `;
+
+    grid.appendChild(card);
   });
 
-  console.log("Stock sincronizado ✅");
   updateProductCards();
+  console.log("Productos cargados dinámicamente ✅");
 }
+
 
 supabase
   .channel('stock-changes')
@@ -508,8 +543,9 @@ async function descontarStockSupabase(productId, cantidad) {
 }
 
 // ★ INICIALIZAR
-window.addEventListener('DOMContentLoaded', () => { 
-   syncStockFromSupabase();
+window.addEventListener('DOMContentLoaded', async () => {
+   await cargarProductosDesdeSupabase();
 });
+
 
 
