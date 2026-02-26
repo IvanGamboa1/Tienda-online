@@ -470,7 +470,7 @@ async function cambiarEstadoPedido(nuevoEstado) {
   renderBotonesAccion(nuevoEstado);
 
   // Recargar lista
-  await cargarPedidos();
+  cargarPedidos();
 }
 
 /* ═══════════════════════════════════════════════
@@ -496,44 +496,44 @@ function enviarMensajeWA(tipo) {
 
   if (tipo === 'confirmacion') {
     nuevoEstado = 'confirmado';
-    msg  = `¡Hola ${nombre}! 👋\n\n`;
-    msg += `✅ *Tu pedido ha sido CONFIRMADO* 🎉\n\n`;
+    msg  = `¡Hola ${nombre}! \n\n`;
+    msg += `*Tu pedido ha sido CONFIRMADO* \n\n`;
     msg += `*K1KO Streetwear*\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    msg += `📦 *Pedido:* ${orderId}\n`;
-    msg += `💰 *Total:* ${total}\n\n`;
+    msg += `*Pedido:* ${orderId}\n`;
+    msg += `*Total:* ${total}\n\n`;
     msg += `*Productos:*\n${listaProd}\n\n`;
-    msg += `📍 *Dirección:*\n${p.barrio} — ${p.direccion}\n`;
-    msg += `👤 Recibe: ${p.recibe}\n\n`;
-    msg += `🚚 Tu pedido llegará en *24 horas hábiles*.\n\n`;
+    msg += `*Dirección:*\n${p.barrio} — ${p.direccion}\n`;
+    msg += `Recibe: ${p.recibe}\n\n`;
+    msg += `Tu pedido llegará en *24 horas hábiles*.\n\n`;
     msg += `*K1KO Streetwear* 🖤`;
 
   } else if (tipo === 'envio') {
     nuevoEstado = 'enviado';
-    msg  = `¡Hola ${nombre}! 🚚\n\n`;
-    msg += `*Tu pedido está en camino* ✈️\n\n`;
+    msg  = `¡Hola ${nombre}! \n\n`;
+    msg += `*Tu pedido está en camino* \n\n`;
     msg += `*K1KO Streetwear*\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    msg += `📦 *Pedido:* ${orderId}\n\n`;
+    msg += `*Pedido:* ${orderId}\n\n`;
     msg += `*Productos:*\n${listaProd}\n\n`;
-    msg += `📍 *Dirección:* ${p.barrio} — ${p.direccion}\n`;
-    msg += `👤 Recibe: ${p.recibe}\n\n`;
-    msg += `📱 Te contactaremos cuando lleguemos.\n*K1KO Streetwear* 🖤`;
+    msg += `*Dirección:* ${p.barrio} — ${p.direccion}\n`;
+    msg += `Recibe: ${p.recibe}\n\n`;
+    msg += `Te contactaremos cuando lleguemos.\n*K1KO Streetwear*`;
 
   } else if (tipo === 'entregado') {
-    msg  = `¡Hola ${nombre}! 🎉\n\n`;
-    msg += `*Tu pedido fue ENTREGADO exitosamente* ✅\n\n`;
-    msg += `Gracias por tu compra. ¡Esperamos que ames tu ropa! 🔥\n`;
+    msg  = `¡Hola ${nombre}! \n\n`;
+    msg += `*Tu pedido fue ENTREGADO exitosamente* \n\n`;
+    msg += `Gracias por tu compra. ¡Esperamos que ames tu ropa! \n`;
     msg += `Síguenos en Instagram *@k1ko45* para ver nuevos drops!\n\n`;
-    msg += `*K1KO Streetwear* 🖤`;
+    msg += `*K1KO Streetwear* `;
 
   } else if (tipo === 'cancelado') {
     msg  = `Hola ${nombre},\n\n`;
     msg += `Lamentamos informarte que tu pedido *${orderId}* ha sido cancelado.\n\n`;
     msg += `Si tienes dudas escríbenos con gusto te ayudamos.\n\n`;
-    msg += `*K1KO Streetwear* 🖤`;
+    msg += `*K1KO Streetwear* `;
   }
 
   // 1. Abrir WhatsApp INMEDIATAMENTE (sin esperar Supabase)
-  window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
+ window.location.href = `https://api.whatsapp.com/send?phone=${num}&text=${encodeURIComponent(msg)}`;
   toast(`Mensaje enviado a ${nombre} ✓`, 'ok');
 
   // 2. Actualizar estado en Supabase EN SEGUNDO PLANO (no bloquea)
