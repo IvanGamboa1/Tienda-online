@@ -349,10 +349,19 @@ function abrirModalPedido(id) {
   document.getElementById('m-factura').textContent   = pedido.tipo_factura || '—';
 
   // Envío
+  document.getElementById('m-ciudad').textContent    = pedido.ciudad || '—';
   document.getElementById('m-barrio').textContent    = pedido.barrio || '—';
   document.getElementById('m-direccion').textContent = pedido.direccion || '—';
   document.getElementById('m-adicional').textContent = pedido.direccion_adicional || 'No especificado';
   document.getElementById('m-recibe').textContent    = pedido.recibe || '—';
+  // Costo de envío
+  const envCosto = pedido.costo_envio !== undefined && pedido.costo_envio !== null
+    ? (Number(pedido.costo_envio) === 0 ? 'GRATIS' : '$' + Number(pedido.costo_envio).toLocaleString('es-CO') + ' COP')
+    : '—';
+  document.getElementById('m-costo-envio').textContent = envCosto;
+  document.getElementById('m-costo-envio').style.color = Number(pedido.costo_envio) === 0 ? '#25D366' : '#fbbf24';
+  // Subtotal y total desglosado
+  document.getElementById('m-subtotal').textContent = pedido.subtotal ? '$' + Number(pedido.subtotal).toLocaleString('es-CO') + ' COP' : '—';
 
   // Pago
   document.getElementById('m-metodo').textContent    = pedido.metodo_pago || '—';
@@ -473,57 +482,64 @@ function enviarMensajeWA(tipo) {
   const cel = (p.celular || '').replace(/\D/g, '');
   if (!cel) { toast('El cliente no tiene celular registrado', 'fail'); return; }
 
-  const num = cel.startsWith('57') ? cel : '57'+cel;
+  const num    = cel.startsWith('57') ? cel : '57' + cel;
   const nombre = (p.cliente || 'cliente').split(' ')[0];
-  const orderId = p.order_id || '#'+p.id;
-  const total = '$'+(Number(p.total)||0).toLocaleString('es-CO')+' COP';
+  const orderId = p.order_id || '#' + p.id;
+  const total   = '$' + (Number(p.total) || 0).toLocaleString('es-CO') + ' COP';
 
   let prods = [];
   try { prods = JSON.parse(p.productos_json || '[]'); } catch(e) {}
   const listaProd = prods.map(x => `• ${x.name} · Talla ${x.size} · x${x.qty}`).join('\n');
 
   let msg = '';
+  let nuevoEstado = null;
 
   if (tipo === 'confirmacion') {
-    msg = `¡Hola ${nombre}! 👋\n\n`;
+    nuevoEstado = 'confirmado';
+    msg  = `¡Hola ${nombre}! 👋\n\n`;
     msg += `✅ *Tu pedido ha sido CONFIRMADO* 🎉\n\n`;
     msg += `*K1KO Streetwear*\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     msg += `📦 *Pedido:* ${orderId}\n`;
     msg += `💰 *Total:* ${total}\n\n`;
     msg += `*Productos:*\n${listaProd}\n\n`;
-    msg += `📍 *Dirección de entrega:*\n${p.barrio} — ${p.direccion}\n`;
+    msg += `📍 *Dirección:*\n${p.barrio} — ${p.direccion}\n`;
     msg += `👤 Recibe: ${p.recibe}\n\n`;
-    msg += `🚚 Tu pedido llegará en *24 horas hábiles* en Buenaventura.\n\n`;
-    msg += `Cualquier duda escríbenos.\n*K1KO Streetwear* 🖤`;
-    // También cambiar estado a confirmado
-    cambiarEstadoPedido('confirmado');
+    msg += `🚚 Tu pedido llegará en *24 horas hábiles*.\n\n`;
+    msg += `*K1KO Streetwear* 🖤`;
+
   } else if (tipo === 'envio') {
-    msg = `¡Hola ${nombre}! 🚚\n\n`;
+    nuevoEstado = 'enviado';
+    msg  = `¡Hola ${nombre}! 🚚\n\n`;
     msg += `*Tu pedido está en camino* ✈️\n\n`;
     msg += `*K1KO Streetwear*\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
     msg += `📦 *Pedido:* ${orderId}\n\n`;
-    msg += `*Productos enviados:*\n${listaProd}\n\n`;
+    msg += `*Productos:*\n${listaProd}\n\n`;
     msg += `📍 *Dirección:* ${p.barrio} — ${p.direccion}\n`;
     msg += `👤 Recibe: ${p.recibe}\n\n`;
     msg += `📱 Te contactaremos cuando lleguemos.\n*K1KO Streetwear* 🖤`;
-    cambiarEstadoPedido('enviado');
+
   } else if (tipo === 'entregado') {
-    msg = `¡Hola ${nombre}! 🎉\n\n`;
+    msg  = `¡Hola ${nombre}! 🎉\n\n`;
     msg += `*Tu pedido fue ENTREGADO exitosamente* ✅\n\n`;
-    msg += `*K1KO Streetwear*\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    msg += `📦 Pedido: ${orderId}\n\n`;
-    msg += `Gracias por tu compra. Esperamos que ames tu ropa 🔥\n`;
-    msg += `¡Síguenos en Instagram @k1ko45 para ver nuevos drops!\n\n`;
+    msg += `Gracias por tu compra. ¡Esperamos que ames tu ropa! 🔥\n`;
+    msg += `Síguenos en Instagram *@k1ko45* para ver nuevos drops!\n\n`;
     msg += `*K1KO Streetwear* 🖤`;
+
   } else if (tipo === 'cancelado') {
-    msg = `Hola ${nombre},\n\n`;
+    msg  = `Hola ${nombre},\n\n`;
     msg += `Lamentamos informarte que tu pedido *${orderId}* ha sido cancelado.\n\n`;
-    msg += `Si tienes dudas o quieres hacer un nuevo pedido, escríbenos con gusto te ayudamos.\n\n`;
+    msg += `Si tienes dudas escríbenos con gusto te ayudamos.\n\n`;
     msg += `*K1KO Streetwear* 🖤`;
   }
 
+  // 1. Abrir WhatsApp INMEDIATAMENTE (sin esperar Supabase)
   window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
-  toast(`Mensaje preparado para ${nombre}`, 'ok');
+  toast(`Mensaje enviado a ${nombre} ✓`, 'ok');
+
+  // 2. Actualizar estado en Supabase EN SEGUNDO PLANO (no bloquea)
+  if (nuevoEstado) {
+    cambiarEstadoPedido(nuevoEstado);
+  }
 }
 
 /* ═══════════════════════════════════════════════

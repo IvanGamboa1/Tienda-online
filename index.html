@@ -202,21 +202,91 @@
                     <div class="co-field-group"><label>Tipo de factura *</label><select id="co-tipoFactura"><option value="">Selecciona...</option><option value="persona">Persona Natural</option><option value="empresa">Empresa / NIT</option></select><span class="co-error" id="err-tipoFactura"></span></div>
                     <button class="co-btn-next" onclick="goStep(2)">IR A ENVÍO <i class="bi bi-arrow-right"></i></button>
                 </div>
-                <!-- Paso 2 -->
+                <!-- Paso 2 — ENVÍO -->
                 <div class="co-panel" id="panel-2">
-                    <div class="co-panel-title"><span class="co-panel-num">2 de 3</span><h3>ENVÍO</h3></div>
-                    <p class="co-info-text">Para evitar novedades en la entrega, verifica muy bien tus datos.</p>
-                    <div class="co-ciudad-badge"><i class="bi bi-geo-alt-fill"></i>Ciudad: <strong style="margin-left:0.3rem;">Buenaventura</strong><small>· Valle del Cauca</small></div>
-                    <div class="co-field-group"><label>Barrio *</label><input type="text" id="co-municipio" placeholder="Ej: El Cristal, La Unión..."><span class="co-error" id="err-municipio"></span></div>
-                    <div class="co-field-group"><label>Dirección *</label><input type="text" id="co-direccion" placeholder="Ej: Carrera 24A # 83 - 15"><span class="co-error" id="err-direccion"></span></div>
-                    <div class="co-field-group"><label>Información adicional (opcional)</label><input type="text" id="co-adicional" placeholder="Apto, torre, referencia..."></div>
-                    <div class="co-field-group"><label>Nombre de quien recibe *</label><input type="text" id="co-recibe" placeholder="Nombre completo"><span class="co-error" id="err-recibe"></span></div>
-                    <div class="co-envio-box"><div class="co-envio-option selected"><i class="bi bi-truck"></i><div><strong>Envío Estándar</strong><small>1 día hábil · Buenaventura y alrededores</small></div><span class="co-envio-price">GRATIS</span></div></div>
-                    <div class="co-btn-row">
-                        <button class="co-btn-back" onclick="goStep(1)"><i class="bi bi-arrow-left"></i> Volver</button>
-                        <button class="co-btn-next" onclick="goStep(3)">IR A PAGO <i class="bi bi-arrow-right"></i></button>
-                    </div>
+    <div class="co-panel-title"><span class="co-panel-num">2 de 3</span><h3>ENVÍO</h3></div>
+    <p class="co-info-text">Hacemos envíos a todas las ciudades de Colombia con acceso por carretera 🚚</p>
+
+    <!-- Buscador de ciudad -->
+    <div class="co-field-group">
+        <label>Ciudad de destino *</label>
+        <div class="co-city-wrap" id="co-city-wrap">
+            <div class="co-city-search-box">
+                <i class="bi bi-search"></i>
+                <input
+                    type="text"
+                    id="co-city-search"
+                    placeholder="Busca tu ciudad..."
+                    autocomplete="off"
+                    oninput="filterCities(this.value)"
+                    onfocus="openCityDropdown()"
+                    onclick="openCityDropdown()"
+                >
+                <button class="co-city-clear" id="co-city-clear" onclick="clearCity()" style="display:none" type="button">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="co-city-dropdown" id="co-city-dropdown" style="display:none">
+                <div class="co-city-list" id="co-city-list"></div>
+            </div>
+        </div>
+        <span class="co-error" id="err-ciudad"></span>
+    </div>
+
+    <!-- Info de la ciudad seleccionada (oculto hasta seleccionar) -->
+    <div class="co-city-box" id="co-city-box" style="display:none">
+        <div class="co-city-box-header">
+            <div class="co-city-box-icon"><i class="bi bi-geo-alt-fill"></i></div>
+            <div class="co-city-box-info">
+                <div class="co-city-box-name" id="co-city-box-name">—</div>
+                <div class="co-city-box-dept" id="co-city-box-dept">—</div>
+            </div>
+            <button type="button" class="co-city-box-change" onclick="clearCity()">
+                <i class="bi bi-pencil"></i> Cambiar
+            </button>
+        </div>
+        <div class="co-city-box-grid">
+            <div class="co-city-box-item">
+                <i class="bi bi-clock-fill"></i>
+                <div>
+                    <div class="co-city-box-label">Tiempo estimado</div>
+                    <div class="co-city-box-val" id="co-city-box-time">—</div>
                 </div>
+            </div>
+            <div class="co-city-box-item">
+                <i class="bi bi-truck"></i>
+                <div>
+                    <div class="co-city-box-label">Tipo de envío</div>
+                    <div class="co-city-box-val" id="co-city-box-type">Terrestre</div>
+                </div>
+            </div>
+            <div class="co-city-box-item">
+                <i class="bi bi-currency-dollar"></i>
+                <div>
+                    <div class="co-city-box-label">Costo de envío</div>
+                    <div class="co-city-box-val" id="co-city-box-cost" style="font-weight:800">—</div>
+                </div>
+            </div>
+            <div class="co-city-box-item">
+                <i class="bi bi-box-seam-fill"></i>
+                <div>
+                    <div class="co-city-box-label">Transportadora</div>
+                    <div class="co-city-box-val" id="co-city-box-carrier">—</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="co-field-group"><label>Barrio / Sector *</label><input type="text" id="co-municipio" placeholder="Ej: El Cristal, La Unión..."><span class="co-error" id="err-municipio"></span></div>
+    <div class="co-field-group"><label>Dirección *</label><input type="text" id="co-direccion" placeholder="Ej: Carrera 24A # 83 - 15"><span class="co-error" id="err-direccion"></span></div>
+    <div class="co-field-group"><label>Información adicional (opcional)</label><input type="text" id="co-adicional" placeholder="Apto, torre, referencia..."></div>
+    <div class="co-field-group"><label>Nombre de quien recibe *</label><input type="text" id="co-recibe" placeholder="Nombre completo"><span class="co-error" id="err-recibe"></span></div>
+
+    <div class="co-btn-row">
+        <button class="co-btn-back" onclick="goStep(1)"><i class="bi bi-arrow-left"></i> Volver</button>
+        <button class="co-btn-next" onclick="goStep(3)">IR A PAGO <i class="bi bi-arrow-right"></i></button>
+    </div>
+</div>
                 <!-- Paso 3 -->
                 <div class="co-panel" id="panel-3">
                     <div class="co-panel-title"><span class="co-panel-num">3 de 3</span><h3>PAGO</h3></div>
@@ -231,7 +301,9 @@
                     <div class="co-alt-info" id="altInfo" style="display:none;"><div class="co-info-banner"><i class="bi bi-info-circle"></i><span id="altInfoText"></span></div></div>
                     <div class="co-btn-row">
                         <button class="co-btn-back" onclick="goStep(2)"><i class="bi bi-arrow-left"></i> Volver</button>
-                        <button class="co-btn-confirm" onclick="confirmOrder()"><i class="bi bi-whatsapp"></i> CONFIRMAR Y ENVIAR FACTURA</button>
+                        <button class="co-btn-confirm" onclick="confirmOrder()">
+                        <i class="bi bi-check-circle-fill"></i> CONFIRMAR PEDIDO
+                        </button>
                     </div>
                 </div>
             </div>
@@ -241,7 +313,7 @@
                     <div id="co-summary-items"></div>
                     <div class="co-summary-divider"></div>
                     <div class="co-summary-row"><span>Subtotal</span><span id="co-subtotal">$0</span></div>
-                    <div class="co-summary-row"><span>Envío</span><span class="co-green">Gratis</span></div>
+                    <div class="co-summary-row"><span>Envío</span><span id="co-envio-val" class="co-green">—</span></div>
                     <div class="co-summary-row total"><span>TOTAL</span><span id="co-total-final">$0</span></div>
                 </div>
             </div>
