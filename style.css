@@ -917,3 +917,67 @@ footer { padding: 5rem 5% 3rem; background: var(--primary-black); border-top: 1p
     .about-stats { max-width: 100%; }
     .cart-header h2 { font-size: 1.5rem; }
 }
+/* ══════════════════════════════════════════════════════════════
+   UPLOADER DE COMPROBANTE — agregar al final de style.css
+══════════════════════════════════════════════════════════════ */
+
+.co-uploader-label {
+  font-size: .65rem;
+  font-weight: 600;
+  letter-spacing: .25em;
+  text-transform: uppercase;
+  color: #888;
+  margin-bottom: .65rem;
+}
+
+.co-drop-zone {
+  position: relative;
+  border: 1.5px dashed rgba(251,191,36,.3);
+  background: rgba(251,191,36,.03);
+  padding: 2rem 1.5rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all .3s;
+}
+.co-drop-zone:hover,
+.co-drop-zone.drag-over {
+  border-color: var(--accent-gold);
+  background: rgba(251,191,36,.07);
+}
+.co-dz-title {
+  font-size: .88rem;
+  font-weight: 500;
+  color: #f0f0f0;
+  margin-bottom: .3rem;
+}
+.co-dz-sub {
+  font-size: .72rem;
+  color: #555;
+  letter-spacing: .04em;
+}
+.co-dz-btn {
+  display: inline-block;
+  margin-top: .9rem;
+  padding: .45rem 1.1rem;
+  border: 1px solid rgba(251,191,36,.35);
+  color: var(--accent-gold);
+  font-size: .7rem;
+  font-weight: 500;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  pointer-events: none;
+  background: transparent;
+  transition: all .3s;
+}
+.co-drop-zone:hover .co-dz-btn {
+  background: rgba(251,191,36,.1);
+}
+
+.co-preview-wrap {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: .9rem 1rem;
+  border: 1px solid rgba(37,211,102,.25);
+  background: rgba(37,211,102,.04);
+}

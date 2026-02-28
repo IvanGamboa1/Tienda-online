@@ -119,7 +119,6 @@ const CIUDADES = [
 /* ══════════════════════════════════════════════════════════════
    ESTADO GLOBAL
 ══════════════════════════════════════════════════════════════ */
-// Imágenes SVG para demo (se sobreescriben con los datos de Supabase)
 const SVG_BLACK = `data:image/svg+xml;utf8,<svg viewBox="0 0 600 500" xmlns="http://www.w3.org/2000/svg"><rect width="600" height="500" fill="%230d0d0d"/><text x="300" y="220" font-family="sans-serif" font-size="90" font-weight="900" fill="rgba(255,255,255,0.06)" text-anchor="middle">K1KO</text><text x="300" y="290" font-family="sans-serif" font-size="22" fill="rgba(251,191,36,0.35)" text-anchor="middle" letter-spacing="8">SAND BLACK</text></svg>`;
 const SVG_WHITE = `data:image/svg+xml;utf8,<svg viewBox="0 0 600 500" xmlns="http://www.w3.org/2000/svg"><rect width="600" height="500" fill="%23efefef"/><text x="300" y="220" font-family="sans-serif" font-size="90" font-weight="900" fill="rgba(0,0,0,0.06)" text-anchor="middle">K1KO</text><text x="300" y="290" font-family="sans-serif" font-size="22" fill="rgba(220,38,38,0.3)" text-anchor="middle" letter-spacing="8">SAND WHITE</text></svg>`;
 
@@ -146,7 +145,11 @@ let cart              = [];
 let currentStep       = 1;
 let selectedPayMethod = '';
 let modalQty          = 1;
-let selectedCity      = null;   // ← ciudad seleccionada en checkout
+let selectedCity      = null;
+
+// ── ESTADO DEL UPLOADER ──
+let uploadedFile = null;   // File object seleccionado
+let uploadedURL  = '';     // URL pública en Supabase Storage (se llena al confirmar)
 
 /* ══════════════════════════════════════════════════════════════
    CARGAR PRODUCTOS DESDE SUPABASE
@@ -184,7 +187,6 @@ async function cargarProductosDesdeSupabase() {
   updateProductCards();
 }
 
-// Realtime: actualizar stock al detectar cambios
 supabase.channel('stock-changes')
   .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'products' }, () => {
     syncStockFromSupabase();
@@ -207,7 +209,6 @@ async function descontarStockSupabase(productId, cantidad) {
   const nuevoStock = Math.max(data.stock - cantidad, 0);
   const { error: upErr } = await supabase.from('products').update({ stock: nuevoStock }).eq('id', productId);
   if (upErr) console.error('Error actualizando stock:', upErr);
-  else       console.log(`Stock actualizado ${productId}: ${nuevoStock}`);
 }
 
 async function syncStockFromSupabase() {
@@ -388,15 +389,17 @@ function updateProductCards() {
 function openCheckout() {
   if (cart.length === 0) return;
   selectedCity = null;
+  // Reset uploader
+  uploadedFile = null;
+  uploadedURL  = '';
   fillSummary();
   document.getElementById('checkoutOverlay').classList.add('active');
   document.getElementById('cartSidebar').classList.remove('active');
   document.body.style.overflow = 'hidden';
-  // Reset city picker
   const csi = document.getElementById('co-city-search');
   if (csi) csi.value = '';
   const csb = document.getElementById('co-city-box');
-  if (csb) { csb.style.display = 'none'; }
+  if (csb) csb.style.display = 'none';
   const cdd = document.getElementById('co-city-dropdown');
   if (cdd) cdd.style.display = 'none';
   const cerr = document.getElementById('err-ciudad');
@@ -480,7 +483,6 @@ function validateStep(step) {
     check('co-tipoFactura','err-tipoFactura','Selecciona factura.');
   }
   if (step === 2) {
-    // Validar ciudad
     if (!selectedCity) {
       const e = document.getElementById('err-ciudad');
       if (e) e.textContent = 'Selecciona una ciudad de destino.';
@@ -493,24 +495,163 @@ function validateStep(step) {
     check('co-direccion','err-direccion','Ingresa dirección.');
     check('co-recibe','err-recibe','Ingresa nombre.');
   }
-  if (step === 3 && ['nequi','daviplata','bancolombia'].includes(selectedPayMethod))
-    check('co-referencia','err-referencia','Ingresa número de referencia.');
-  if (step === 3 && !selectedPayMethod) ok = false;
+  if (step === 3) {
+    if (!selectedPayMethod) { ok = false; }
+    // Si requiere comprobante, validar que haya archivo
+    if (['nequi','daviplata','bancolombia'].includes(selectedPayMethod) && !uploadedFile) {
+      const e = document.getElementById('err-comprobante');
+      if (e) e.textContent = 'Adjuntá el comprobante de pago para continuar.';
+      ok = false;
+    }
+  }
   return ok;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   SELECCIÓN DE MÉTODO DE PAGO
+══════════════════════════════════════════════════════════════ */
 function selectPay(label, method) {
   selectedPayMethod = method;
   document.querySelectorAll('.co-pay-opt').forEach(l => l.classList.remove('selected'));
   label.classList.add('selected');
-  const rf = document.getElementById('refFields');
-  const rb = document.getElementById('refBanner');
-  const ai = document.getElementById('altInfo');
-  rf.style.display = ai.style.display = 'none';
-  rb.className = 'co-ref-banner'; rb.innerHTML = '';
-  if (method==='nequi')        { rf.style.display='block'; rb.classList.add('nequi');       rb.innerHTML=`<span>📱</span><span>Transfiere al <strong>3128462280</strong> por Nequi y pega el comprobante.</span>`; }
-  else if (method==='daviplata')    { rf.style.display='block'; rb.classList.add('daviplata');   rb.innerHTML=`<span>📱</span><span>Transfiere al <strong>3128462280</strong> por Daviplata y pega el comprobante.</span>`; }
-  else if (method==='bancolombia')  { rf.style.display='block'; rb.classList.add('bancolombia'); rb.innerHTML=`<span>🏦</span><span>Transfiere a cuenta <strong>XXX-XXXXXXXX</strong> Bancolombia y pega la referencia.</span>`; }
-  else if (method==='contraentrega'){ ai.style.display='block'; document.getElementById('altInfoText').textContent='Pagas en efectivo al recibir. Domiciliario en 1 día hábil. Sin costo adicional.'; }
+
+  const refFields  = document.getElementById('refFields');
+  const refBanner  = document.getElementById('refBanner');
+  const altInfo    = document.getElementById('altInfo');
+  const uploaderWrap = document.getElementById('uploaderWrap');
+
+  // Ocultar todo primero
+  refFields.style.display  = 'none';
+  altInfo.style.display    = 'none';
+  uploaderWrap.style.display = 'none';
+  refBanner.className      = 'co-ref-banner';
+  refBanner.innerHTML      = '';
+
+  if (method === 'nequi') {
+    refBanner.classList.add('nequi');
+    refBanner.innerHTML = `<span>📱</span><span>Transfiere al <strong>3128462280</strong> por Nequi y adjuntá el comprobante abajo.</span>`;
+    refFields.style.display    = 'block';
+    uploaderWrap.style.display = 'block';
+  } else if (method === 'daviplata') {
+    refBanner.classList.add('daviplata');
+    refBanner.innerHTML = `<span>📱</span><span>Transfiere al <strong>3128462280</strong> por Daviplata y adjuntá el comprobante abajo.</span>`;
+    refFields.style.display    = 'block';
+    uploaderWrap.style.display = 'block';
+  } else if (method === 'bancolombia') {
+    refBanner.classList.add('bancolombia');
+    refBanner.innerHTML = `<span>🏦</span><span>Transfiere a cuenta <strong>XXX-XXXXXXXX</strong> Bancolombia y adjuntá el comprobante abajo.</span>`;
+    refFields.style.display    = 'block';
+    uploaderWrap.style.display = 'block';
+  } else if (method === 'contraentrega') {
+    altInfo.style.display = 'block';
+    document.getElementById('altInfoText').textContent = 'Pagas en efectivo al recibir. Domiciliario en 1 día hábil. Sin costo adicional.';
+    // Limpiar uploader si había algo
+    resetUploader();
+  }
+
+  // Limpiar error de comprobante al cambiar método
+  const e = document.getElementById('err-comprobante');
+  if (e) e.textContent = '';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UPLOADER DE COMPROBANTE
+══════════════════════════════════════════════════════════════ */
+
+// Drag & Drop
+document.addEventListener('DOMContentLoaded', () => {
+  const dz = document.getElementById('co-drop-zone');
+  if (!dz) return;
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault();
+    dz.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) procesarComprobante(file);
+  });
+});
+
+function handleComprobanteInput(input) {
+  if (input.files[0]) procesarComprobante(input.files[0]);
+}
+
+function procesarComprobante(file) {
+  const allowed = ['image/jpeg','image/png','image/webp','image/heic','application/pdf'];
+  if (!allowed.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp|heic|pdf)$/i)) {
+    setErrComprobante('Formato no válido. Usá JPG, PNG, WEBP o PDF.');
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    setErrComprobante('El archivo supera los 5 MB.');
+    return;
+  }
+  setErrComprobante('');
+  uploadedFile = file;
+  mostrarPreviewComprobante(file);
+}
+
+function mostrarPreviewComprobante(file) {
+  const dz      = document.getElementById('co-drop-zone');
+  const preview = document.getElementById('co-preview-wrap');
+  const thumb   = document.getElementById('co-preview-thumb');
+  const name    = document.getElementById('co-preview-name');
+  const size    = document.getElementById('co-preview-size');
+
+  name.textContent = file.name;
+  size.textContent = formatSize(file.size);
+
+  if (file.type.startsWith('image/')) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      thumb.src = e.target.result;
+      thumb.style.display = 'block';
+      const pdfIcon = preview.querySelector('.co-pdf-icon');
+      if (pdfIcon) pdfIcon.remove();
+    };
+    reader.readAsDataURL(file);
+  } else {
+    thumb.style.display = 'none';
+    // Ícono PDF
+    let pdfIcon = preview.querySelector('.co-pdf-icon');
+    if (!pdfIcon) {
+      pdfIcon = document.createElement('span');
+      pdfIcon.className = 'co-pdf-icon';
+      pdfIcon.style.cssText = 'font-size:2.2rem;flex-shrink:0;';
+      pdfIcon.textContent = '📄';
+      preview.insertBefore(pdfIcon, preview.firstChild);
+    }
+  }
+
+  dz.style.display      = 'none';
+  preview.style.display = 'flex';
+}
+
+function quitarComprobante() {
+  resetUploader();
+}
+
+function resetUploader() {
+  uploadedFile = null;
+  uploadedURL  = '';
+  const inp = document.getElementById('co-file-input');
+  if (inp) inp.value = '';
+  const dz      = document.getElementById('co-drop-zone');
+  const preview = document.getElementById('co-preview-wrap');
+  if (dz)      dz.style.display      = '';
+  if (preview) preview.style.display = 'none';
+  setErrComprobante('');
+}
+
+function setErrComprobante(msg) {
+  const e = document.getElementById('err-comprobante');
+  if (e) e.textContent = msg;
+}
+
+function formatSize(bytes) {
+  if (bytes < 1024)       return bytes + ' B';
+  if (bytes < 1024*1024)  return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/(1024*1024)).toFixed(1) + ' MB';
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -534,7 +675,6 @@ function filterCities(term) {
     list.innerHTML = `<div class="co-city-empty"><i class="bi bi-search"></i> Sin resultados para "${term}"</div>`;
     return;
   }
-  // Agrupar por departamento
   const byDept = {};
   filtered.forEach(c => { if (!byDept[c.dept]) byDept[c.dept] = []; byDept[c.dept].push(c); });
   list.innerHTML = Object.entries(byDept).map(([dept, cities]) => `
@@ -562,7 +702,6 @@ function selectCity(city) {
   if (dd) dd.style.display = 'none';
   const err = document.getElementById('err-ciudad');
   if (err) err.textContent = '';
-  // Mostrar caja de info
   const box = document.getElementById('co-city-box');
   if (box) {
     box.style.display = 'block';
@@ -588,7 +727,6 @@ function clearCity() {
   fillSummary();
 }
 
-// Cerrar dropdown al hacer click fuera
 document.addEventListener('click', function(e) {
   const wrap = document.getElementById('co-city-wrap');
   const dd   = document.getElementById('co-city-dropdown');
@@ -596,7 +734,7 @@ document.addEventListener('click', function(e) {
 });
 
 /* ══════════════════════════════════════════════════════════════
-   CONFIRMAR PEDIDO — GUARDA EN SUPABASE, SIN WHATSAPP AUTOMÁTICO
+   CONFIRMAR PEDIDO — SUBE COMPROBANTE + GUARDA EN SUPABASE
 ══════════════════════════════════════════════════════════════ */
 async function confirmOrder() {
   if (!validateStep(3)) return;
@@ -614,7 +752,6 @@ async function confirmOrder() {
   const adicional = g('co-adicional');
   const recibe    = g('co-recibe');
   const metPago   = {nequi:'Nequi',daviplata:'Daviplata',bancolombia:'Bancolombia',contraentrega:'Contraentrega'}[selectedPayMethod] || selectedPayMethod;
-  const ref       = ['nequi','daviplata','bancolombia'].includes(selectedPayMethod) ? g('co-referencia') : '';
   const ciudadEnvio = selectedCity ? `${selectedCity.name}, ${selectedCity.dept}` : 'Buenaventura, Valle del Cauca';
   const subtotal  = cart.reduce((s,i) => s + i.price * i.qty, 0);
   const shipping  = selectedCity ? selectedCity.cost : 0;
@@ -624,16 +761,41 @@ async function confirmOrder() {
   const productosJson    = JSON.stringify(cart.map(i => ({id:i.productId, name:i.name, price:i.price, size:i.size, qty:i.qty})));
   const productosResumen = cart.map(i => `${i.name} T:${i.size} x${i.qty}`).join('\n');
 
-  // Mostrar loading en el botón
+  // Mostrar loading
   const btnConfirm = document.querySelector('.co-btn-confirm');
   if (btnConfirm) { btnConfirm.disabled = true; btnConfirm.innerHTML = '<i class="bi bi-arrow-repeat"></i> Guardando...'; }
 
-  // 1. Descontar stock en Supabase
+  // 1. Subir comprobante a Supabase Storage (si hay archivo)
+  let comprobanteUrl = null;
+  if (uploadedFile) {
+    try {
+      const ext      = uploadedFile.name.split('.').pop().toLowerCase();
+      const fileName = `comprobantes/${Date.now()}_${order}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from('comprobantes')
+        .upload(fileName, uploadedFile, { cacheControl: '3600', upsert: false });
+
+      if (upErr) {
+        console.error('Error subiendo comprobante:', upErr);
+        alert('Error al subir el comprobante: ' + upErr.message);
+        if (btnConfirm) { btnConfirm.disabled = false; btnConfirm.innerHTML = '<i class="bi bi-check-circle-fill"></i> Confirmar Pedido'; }
+        return;
+      }
+
+      const { data: urlData } = supabase.storage.from('comprobantes').getPublicUrl(fileName);
+      comprobanteUrl = urlData.publicUrl;
+      uploadedURL    = comprobanteUrl;
+    } catch (err) {
+      console.error('Error inesperado subiendo comprobante:', err);
+    }
+  }
+
+  // 2. Descontar stock
   for (const item of cart) {
     await descontarStockSupabase(item.productId, item.qty);
   }
 
-  // 2. Guardar pedido en Supabase
+  // 3. Guardar pedido en Supabase (incluye comprobante_url)
   const { error: orderError } = await supabase.from('orders').insert({
     order_id:            order,
     cliente:             `${nombre} ${apellido}`,
@@ -648,7 +810,8 @@ async function confirmOrder() {
     direccion_adicional: adicional,
     recibe:              recibe,
     metodo_pago:         metPago,
-    referencia_pago:     ref,
+    referencia_pago:     '',
+    comprobante_url:     comprobanteUrl,
     subtotal:            subtotal,
     costo_envio:         shipping,
     total:               total,
@@ -665,17 +828,16 @@ async function confirmOrder() {
     return;
   }
 
-  // 3. Sincronizar stock local
+  // 4. Sincronizar stock local
   await syncStockFromSupabase();
 
-  // 4. Guardar datos para pantalla de éxito
+  // 5. Copiar productos y limpiar carrito
   const prodsCopy = cart.map(i => ({...i}));
-
-  // 5. Limpiar carrito
   cart = [];
   updateCart();
+  resetUploader();
 
-  // 6. Mostrar pantalla de éxito
+  // 6. Pantalla de éxito
   mostrarPantallaExito({
     order, nombre, apellido, ciudadEnvio, barrio, direccion,
     days: selectedCity?.days || '1-2 días',
@@ -685,7 +847,7 @@ async function confirmOrder() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   PANTALLA DE ÉXITO (reemplaza el checkout)
+   PANTALLA DE ÉXITO
 ══════════════════════════════════════════════════════════════ */
 function mostrarPantallaExito(data) {
   const modal = document.getElementById('checkoutModal');
@@ -698,13 +860,11 @@ function mostrarPantallaExito(data) {
           <p>Tu pedido fue recibido. Te confirmaremos vía WhatsApp en breve.</p>
         </div>
       </div>
-
       <div class="co-suc-order">
         <i class="bi bi-receipt"></i>
         <span>Número de pedido:</span>
         <strong>${data.order}</strong>
       </div>
-
       <div class="co-suc-body">
         <div class="co-suc-col">
           <div class="co-suc-sec-title"><i class="bi bi-bag-fill"></i> Tus productos</div>
@@ -723,20 +883,17 @@ function mostrarPantallaExito(data) {
             <div class="co-suc-trow co-suc-total"><span>TOTAL</span><span>$${data.total.toLocaleString('es-CO')} COP</span></div>
           </div>
         </div>
-
         <div class="co-suc-col">
           <div class="co-suc-sec-title"><i class="bi bi-person-fill"></i> Cliente</div>
           <div class="co-suc-info"><i class="bi bi-person"></i><span>${data.nombre} ${data.apellido}</span></div>
-
           <div class="co-suc-sec-title" style="margin-top:1rem"><i class="bi bi-truck"></i> Envío</div>
           <div class="co-suc-info"><i class="bi bi-geo-alt-fill"></i><span>${data.ciudadEnvio}</span></div>
           <div class="co-suc-info"><i class="bi bi-house-fill"></i><span>${data.barrio} · ${data.direccion}</span></div>
           <div class="co-suc-info"><i class="bi bi-clock-fill"></i><span>${data.days}</span></div>
           <div class="co-suc-info"><i class="bi bi-box-seam-fill"></i><span>${data.carrier}</span></div>
-
           <div class="co-suc-sec-title" style="margin-top:1rem"><i class="bi bi-credit-card-fill"></i> Pago</div>
           <div class="co-suc-info"><i class="bi bi-wallet2"></i><span>${data.metPago}</span></div>
-
+          ${uploadedURL ? `<div class="co-suc-info" style="color:#25D366"><i class="bi bi-paperclip"></i><span>Comprobante adjunto ✓</span></div>` : ''}
           <div class="co-suc-wa">
             <i class="bi bi-whatsapp"></i>
             <div>
@@ -746,7 +903,6 @@ function mostrarPantallaExito(data) {
           </div>
         </div>
       </div>
-
       <button class="co-suc-close" onclick="closeCheckout(); location.reload();">
         <i class="bi bi-arrow-left"></i> Volver a la tienda
       </button>

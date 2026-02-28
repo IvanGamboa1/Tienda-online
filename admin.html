@@ -144,7 +144,6 @@
           <input type="text" id="buscarPedido" placeholder="Buscar por nombre, ID, celular...">
         </div>
       </div>
-
       <div class="tw">
         <table class="dt">
           <thead>
@@ -154,12 +153,13 @@
               <th>Productos</th>
               <th>Total</th>
               <th>Pago</th>
+              <th>Comprobante</th>
               <th>Estado</th>
               <th>Fecha</th>
             </tr>
           </thead>
           <tbody id="tbody">
-            <tr><td colspan="7" class="td-loading"><div class="ld-spin"></div>Cargando...</td></tr>
+            <tr><td colspan="8" class="td-loading"><div class="ld-spin"></div>Cargando...</td></tr>
           </tbody>
         </table>
       </div>
@@ -187,13 +187,9 @@
   </main>
 </div>
 
-<!-- ══════════════════════════════════════
-     MODAL DETALLE PEDIDO
-══════════════════════════════════════ -->
+<!-- MODAL DETALLE PEDIDO -->
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal-pedido">
-
-    <!-- Header modal -->
     <div class="modal-header">
       <div class="modal-header-left">
         <div class="modal-order-id" id="m-order-id">KK-000000</div>
@@ -204,12 +200,8 @@
         <button class="modal-close-btn" id="btnCerrarModal"><i class="bi bi-x-lg"></i></button>
       </div>
     </div>
-
     <div class="modal-body">
-      <!-- Columna izquierda -->
       <div class="modal-col">
-
-        <!-- Productos del pedido -->
         <div class="modal-section">
           <div class="modal-section-title"><i class="bi bi-bag-fill"></i> Productos</div>
           <div id="m-productos"></div>
@@ -218,19 +210,17 @@
             <span id="m-total" class="modal-total-val">$0 COP</span>
           </div>
         </div>
-
-        <!-- Acciones -->
+        <!-- COMPROBANTE -->
+        <div class="modal-section">
+          <div class="modal-section-title"><i class="bi bi-receipt-cutoff"></i> Comprobante de Pago</div>
+          <div id="m-comprobante-zona"></div>
+        </div>
         <div class="modal-section">
           <div class="modal-section-title"><i class="bi bi-lightning-fill"></i> Acciones</div>
           <div class="m-acciones" id="m-acciones"></div>
         </div>
-
       </div>
-
-      <!-- Columna derecha -->
       <div class="modal-col">
-
-        <!-- Datos del cliente -->
         <div class="modal-section">
           <div class="modal-section-title"><i class="bi bi-person-fill"></i> Cliente</div>
           <div class="modal-data-grid">
@@ -241,8 +231,6 @@
             <div class="mdata"><span class="mdata-l">Facturar</span><span class="mdata-v" id="m-factura">—</span></div>
           </div>
         </div>
-
-        <!-- Datos de envío -->
         <div class="modal-section">
           <div class="modal-section-title"><i class="bi bi-truck"></i> Envío</div>
           <div class="modal-data-grid">
@@ -255,8 +243,6 @@
             <div class="mdata"><span class="mdata-l">Subtotal prod.</span><span class="mdata-v" id="m-subtotal">—</span></div>
           </div>
         </div>
-
-        <!-- Pago -->
         <div class="modal-section">
           <div class="modal-section-title"><i class="bi bi-credit-card-fill"></i> Pago</div>
           <div class="modal-data-grid">
@@ -264,9 +250,27 @@
             <div class="mdata"><span class="mdata-l">Referencia</span><span class="mdata-v" id="m-ref">—</span></div>
           </div>
         </div>
-
       </div>
     </div>
+  </div>
+</div>
+
+<!-- LIGHTBOX COMPROBANTE -->
+<div class="lightbox-overlay" id="lightboxOverlay" onclick="cerrarLightbox()">
+  <div class="lightbox-content" onclick="event.stopPropagation()">
+    <div class="lightbox-header">
+      <span class="lightbox-title" id="lbTitle">Comprobante de pago</span>
+      <div class="lightbox-actions">
+        <a class="lb-btn lb-btn-ext" id="lbAbrir" href="#" target="_blank"><i class="bi bi-box-arrow-up-right"></i> Abrir</a>
+        <a class="lb-btn" id="lbDescargar" href="#" download target="_blank"><i class="bi bi-download"></i> Descargar</a>
+        <button class="lb-close" onclick="cerrarLightbox()"><i class="bi bi-x-lg"></i></button>
+      </div>
+    </div>
+    <div class="lightbox-img-wrap">
+      <img id="lbImg" src="" alt="Comprobante" style="display:none">
+      <div class="lb-loading" id="lbLoading"><div class="ld-spin"></div> Cargando imagen...</div>
+    </div>
+    <div class="lightbox-footer" id="lbFooter"></div>
   </div>
 </div>
 

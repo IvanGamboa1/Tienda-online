@@ -29,13 +29,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     b.onclick = () => irVista(b.dataset.v, b);
   });
 
-  // Modal pedido — cerrar
   document.getElementById('modalOverlay').addEventListener('click', function(e){
     if(e.target === this) cerrarModalPedido();
   });
   document.getElementById('btnCerrarModal').addEventListener('click', cerrarModalPedido);
 
-  // Filtros pedidos
   document.querySelectorAll('.filtro-btn').forEach(b => {
     b.addEventListener('click', () => {
       document.querySelectorAll('.filtro-btn').forEach(x => x.classList.remove('on'));
@@ -44,9 +42,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // Buscar pedidos
   document.getElementById('buscarPedido').addEventListener('input', e => {
     buscarEnPedidos(e.target.value);
+  });
+
+  // ESC cierra lightbox o modal
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      if (document.getElementById('lightboxOverlay').classList.contains('on')) {
+        cerrarLightbox();
+      } else {
+        cerrarModalPedido();
+      }
+    }
   });
 
   try {
@@ -108,7 +116,6 @@ function abrirDash(user) {
   cargarStock();
   cargarPedidos();
 
-  // Realtime: nuevos pedidos
   sb.channel('new-orders')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
       notificarNuevoPedido(payload.new);
@@ -233,16 +240,16 @@ function statStock(prods) {
 }
 
 /* ═══════════════════════════════════════════════
-   PEDIDOS — CARGA PRINCIPAL
+   PEDIDOS — CARGA
 ═══════════════════════════════════════════════ */
 async function cargarPedidos() {
   const tbody = document.getElementById('tbody');
-  tbody.innerHTML = `<tr><td colspan="7" class="td-loading"><div class="ld-spin"></div>Cargando pedidos...</td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="8" class="td-loading"><div class="ld-spin"></div>Cargando pedidos...</td></tr>`;
 
   const { data, error } = await sb.from('orders').select('*').order('created_at', { ascending: false }).limit(100);
 
   if (error) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:#444">Error cargando pedidos: ${error.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:#444">Error: ${error.message}</td></tr>`;
     return;
   }
 
@@ -252,8 +259,8 @@ async function cargarPedidos() {
 }
 
 function actualizarStatsOverview(data) {
-  const total    = data.reduce((s,o) => s+(Number(o.total)||0), 0);
-  const pedidos  = data.length;
+  const total      = data.reduce((s,o) => s+(Number(o.total)||0), 0);
+  const pedidos    = data.length;
   const pendientes = data.filter(o => o.estado === 'pendiente').length;
 
   const elVen  = document.getElementById('sv-ven');
@@ -263,7 +270,6 @@ function actualizarStatsOverview(data) {
   if (elPed)  elPed.textContent  = pedidos;
   if (elVenN) elVenN.textContent = pendientes + ' pendiente'+(pendientes!==1?'s':'');
 
-  // Badge en sidebar
   const badge = document.getElementById('badge-pedidos');
   if (badge) {
     badge.textContent = pendientes > 0 ? pendientes : '';
@@ -271,11 +277,14 @@ function actualizarStatsOverview(data) {
   }
 }
 
+/* ═══════════════════════════════════════════════
+   RENDERIZAR TABLA CON COLUMNA COMPROBANTE
+═══════════════════════════════════════════════ */
 function renderizarPedidos(lista) {
   const tbody = document.getElementById('tbody');
 
   if (!lista || lista.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" class="td-empty"><i class="bi bi-inbox"></i><br>Sin pedidos aún</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="td-empty"><i class="bi bi-inbox"></i><br>Sin pedidos aún</td></tr>`;
     return;
   }
 
@@ -284,9 +293,25 @@ function renderizarPedidos(lista) {
     const cls = { pendiente:'tpe', confirmado:'tok', enviado:'tenv', cancelado:'tca' }[st] || 'tpe';
     const ico = { pendiente:'bi-clock-fill', confirmado:'bi-check-circle-fill', enviado:'bi-truck', cancelado:'bi-x-circle-fill' }[st] || 'bi-clock-fill';
     const lbl = { pendiente:'Pendiente', confirmado:'Confirmado', enviado:'Enviado', cancelado:'Cancelado' }[st] || st;
-    const fe  = o.created_at ? new Date(o.created_at).toLocaleDateString('es-CO', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+    const fe  = o.created_at ? new Date(o.created_at).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
     const to  = o.total ? '$'+Number(o.total).toLocaleString('es-CO') : '—';
     const esPendiente = st === 'pendiente';
+
+    // Celda comprobante
+    let compCell = '';
+    if (o.comprobante_url) {
+      compCell = `
+        <button class="comp-thumb-btn" onclick="event.stopPropagation();verComprobante('${o.id}')" title="Ver comprobante">
+          <img src="${o.comprobante_url}" class="comp-thumb" alt="comprobante"
+            onerror="this.parentElement.innerHTML='<span class=comp-err-ico><i class=\\'bi bi-image-fill\\'></i></span>'">
+          <span class="comp-zoom"><i class="bi bi-zoom-in"></i></span>
+        </button>`;
+    } else if ((o.metodo_pago||'').toLowerCase() === 'contraentrega') {
+      compCell = `<span class="comp-na"><i class="bi bi-house-fill"></i> Contraentrega</span>`;
+    } else {
+      compCell = `<span class="comp-missing"><i class="bi bi-exclamation-circle-fill"></i> Sin comprobante</span>`;
+    }
+
     return `
     <tr class="tr-pedido ${esPendiente ? 'tr-pendiente' : ''}" onclick="abrirModalPedido('${o.id}')">
       <td><span class="oid">${o.order_id || '#'+o.id}</span>${esPendiente ? '<span class="dot-nuevo"></span>' : ''}</td>
@@ -294,6 +319,7 @@ function renderizarPedidos(lista) {
       <td><div class="prod-cell">${(o.productos_resumen || '—').split('\n').map(l => `<span>${l}</span>`).join('')}</div></td>
       <td style="color:var(--gold);font-weight:800;font-family:'JetBrains Mono',monospace">${to}</td>
       <td>${o.metodo_pago || '—'}</td>
+      <td>${compCell}</td>
       <td><span class="tag ${cls}"><i class="bi ${ico}"></i> ${lbl}</span></td>
       <td>${fe}</td>
     </tr>`;
@@ -304,11 +330,8 @@ function renderizarPedidos(lista) {
    FILTROS Y BÚSQUEDA
 ═══════════════════════════════════════════════ */
 function filtrarPedidos(estado) {
-  if (!estado || estado === 'todos') {
-    renderizarPedidos(pedidosData);
-  } else {
-    renderizarPedidos(pedidosData.filter(p => p.estado === estado));
-  }
+  if (!estado || estado === 'todos') renderizarPedidos(pedidosData);
+  else renderizarPedidos(pedidosData.filter(p => p.estado === estado));
 }
 
 function buscarEnPedidos(termino) {
@@ -330,111 +353,233 @@ function abrirModalPedido(id) {
   if (!pedido) return;
   pedidoSeleccionado = pedido;
 
-  // Header
-  document.getElementById('m-order-id').textContent  = pedido.order_id || '#'+pedido.id;
-  document.getElementById('m-fecha').textContent     = pedido.created_at ? new Date(pedido.created_at).toLocaleString('es-CO') : '—';
+  document.getElementById('m-order-id').textContent = pedido.order_id || '#'+pedido.id;
+  document.getElementById('m-fecha').textContent    = pedido.created_at ? new Date(pedido.created_at).toLocaleString('es-CO') : '—';
 
-  // Estado badge
   const st  = pedido.estado || 'pendiente';
   const cls = { pendiente:'tpe', confirmado:'tok', enviado:'tenv', cancelado:'tca' }[st] || 'tpe';
   const ico = { pendiente:'bi-clock-fill', confirmado:'bi-check-circle-fill', enviado:'bi-truck', cancelado:'bi-x-circle-fill' }[st] || 'bi-clock-fill';
-  const lbl = { pendiente:'Pendiente', confirmado:'Confirmado', enviado:'Enviado', cancelado:'Cancelado' }[st] || st;
+  const lbl = { pendiente:'Pendiente', confirmado:'Confirmado ✓', enviado:'Enviado 🚚', cancelado:'Cancelado' }[st] || st;
   document.getElementById('m-estado').innerHTML = `<span class="tag ${cls}"><i class="bi ${ico}"></i> ${lbl}</span>`;
 
-  // Cliente
   document.getElementById('m-cliente').textContent   = pedido.cliente || '—';
   document.getElementById('m-celular').textContent   = pedido.celular || '—';
   document.getElementById('m-email').textContent     = pedido.email || '—';
-  document.getElementById('m-doc').textContent       = `${pedido.tipo_doc || ''} ${pedido.num_doc || ''}`;
+  document.getElementById('m-doc').textContent       = `${pedido.tipo_doc || ''} ${pedido.num_doc || ''}`.trim() || '—';
   document.getElementById('m-factura').textContent   = pedido.tipo_factura || '—';
 
-  // Envío
   document.getElementById('m-ciudad').textContent    = pedido.ciudad || '—';
   document.getElementById('m-barrio').textContent    = pedido.barrio || '—';
   document.getElementById('m-direccion').textContent = pedido.direccion || '—';
   document.getElementById('m-adicional').textContent = pedido.direccion_adicional || 'No especificado';
   document.getElementById('m-recibe').textContent    = pedido.recibe || '—';
-  // Costo de envío
+
   const envCosto = pedido.costo_envio !== undefined && pedido.costo_envio !== null
     ? (Number(pedido.costo_envio) === 0 ? 'GRATIS' : '$' + Number(pedido.costo_envio).toLocaleString('es-CO') + ' COP')
     : '—';
   document.getElementById('m-costo-envio').textContent = envCosto;
   document.getElementById('m-costo-envio').style.color = Number(pedido.costo_envio) === 0 ? '#25D366' : '#fbbf24';
-  // Subtotal y total desglosado
   document.getElementById('m-subtotal').textContent = pedido.subtotal ? '$' + Number(pedido.subtotal).toLocaleString('es-CO') + ' COP' : '—';
 
-  // Pago
-  document.getElementById('m-metodo').textContent    = pedido.metodo_pago || '—';
-  document.getElementById('m-ref').textContent       = pedido.referencia_pago || 'Sin referencia';
+  document.getElementById('m-metodo').textContent = pedido.metodo_pago || '—';
+  document.getElementById('m-ref').textContent    = pedido.referencia_pago || 'Sin referencia';
 
-  // Productos
   let prods = [];
   try { prods = JSON.parse(pedido.productos_json || '[]'); } catch(e) {}
-  const prodHTML = prods.map(p => `
+  document.getElementById('m-productos').innerHTML = prods.map(p => `
     <div class="m-prod-item">
-      <div class="m-prod-img"><img src="img/${p.id}.jpeg" onerror="this.src=''" alt="${p.name}"><span class="m-prod-qty">x${p.qty}</span></div>
+      <div class="m-prod-img">
+        <img src="img/${p.id}.jpeg" onerror="this.src=''" alt="${p.name}">
+        <span class="m-prod-qty">x${p.qty}</span>
+      </div>
       <div class="m-prod-info">
         <div class="m-prod-name">${p.name}</div>
         <div class="m-prod-det">Talla: <strong>${p.size}</strong> · $${Number(p.price).toLocaleString('es-CO')} c/u</div>
       </div>
       <div class="m-prod-sub">$${(p.price * p.qty).toLocaleString('es-CO')}</div>
-    </div>`).join('');
-  document.getElementById('m-productos').innerHTML = prodHTML || '<p style="color:#666">Sin detalle</p>';
+    </div>`).join('') || '<p style="color:#666;font-size:.85rem">Sin detalle de productos</p>';
 
-  // Total
   document.getElementById('m-total').textContent = '$'+(Number(pedido.total)||0).toLocaleString('es-CO')+' COP';
 
-  // Botones de acción según estado
+  // Renderizar comprobante
+  renderComprobanteModal(pedido);
+
+  // Botones de acción
   renderBotonesAccion(st);
 
   document.getElementById('modalOverlay').classList.add('on');
   document.body.style.overflow = 'hidden';
 }
 
+/* ═══════════════════════════════════════════════
+   COMPROBANTE EN MODAL — RENDER
+═══════════════════════════════════════════════ */
+function renderComprobanteModal(pedido) {
+  const zona   = document.getElementById('m-comprobante-zona');
+  const metodo = (pedido.metodo_pago || '').toLowerCase();
+  const url    = pedido.comprobante_url || '';
+
+  // 1. Contraentrega: no requiere comprobante
+  if (metodo === 'contraentrega') {
+    zona.innerHTML = `
+      <div class="comp-box comp-box-ok">
+        <i class="bi bi-house-door-fill comp-box-icon" style="color:#22c55e"></i>
+        <div>
+          <div class="comp-box-title">Pago contraentrega</div>
+          <div class="comp-box-sub">No requiere comprobante previo. El cliente paga en efectivo al recibir.</div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  // 2. Sin comprobante
+  if (!url) {
+    zona.innerHTML = `
+      <div class="comp-box comp-box-warn">
+        <i class="bi bi-exclamation-circle-fill comp-box-icon" style="color:#f87171"></i>
+        <div>
+          <div class="comp-box-title" style="color:#f87171">Sin comprobante adjunto</div>
+          <div class="comp-box-sub">El cliente no adjuntó comprobante de pago para ${pedido.metodo_pago || 'este método'}.</div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  // 3. PDF
+  const esPDF = url.toLowerCase().includes('.pdf');
+  if (esPDF) {
+    zona.innerHTML = `
+      <div class="comp-box comp-box-pdf">
+        <i class="bi bi-file-earmark-pdf-fill comp-box-icon" style="color:#f87171;font-size:2rem"></i>
+        <div style="flex:1;min-width:0">
+          <div class="comp-box-title">Comprobante en PDF</div>
+          <div class="comp-box-sub" style="word-break:break-all;margin-bottom:.8rem">${url.split('/').pop()}</div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+            <a href="${url}" target="_blank" class="comp-btn comp-btn-gold"><i class="bi bi-eye-fill"></i> Ver PDF</a>
+            <a href="${url}" download target="_blank" class="comp-btn"><i class="bi bi-download"></i> Descargar</a>
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  // 4. Imagen — preview con lightbox
+  const oid     = pedido.order_id || '#'+pedido.id;
+  const cliente = (pedido.cliente || '').replace(/'/g, '');
+  const metodoE = (pedido.metodo_pago || '').replace(/'/g, '');
+  const urlE    = url.replace(/'/g, '');
+
+  zona.innerHTML = `
+    <div class="comp-preview">
+      <div class="comp-preview-bar">
+        <span class="comp-preview-ok"><i class="bi bi-check-circle-fill"></i> Comprobante adjunto</span>
+        <span class="comp-preview-meta">${pedido.metodo_pago || ''} · ${oid}</span>
+      </div>
+      <div class="comp-img-wrap" onclick="abrirLightbox('${urlE}','${oid}','${cliente}','${metodoE}')" title="Clic para ampliar">
+        <img src="${url}" alt="Comprobante" class="comp-img"
+          onerror="this.parentElement.classList.add('comp-img-fail');this.style.display='none'">
+        <div class="comp-img-hover">
+          <i class="bi bi-fullscreen"></i>
+          <span>Clic para ampliar</span>
+        </div>
+        <div class="comp-img-fail-msg">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          <span>No se pudo cargar la imagen</span>
+        </div>
+      </div>
+      <div class="comp-preview-actions">
+        <button class="comp-btn comp-btn-gold" onclick="abrirLightbox('${urlE}','${oid}','${cliente}','${metodoE}')">
+          <i class="bi bi-fullscreen"></i> Ver completo
+        </button>
+        <a href="${url}" download target="_blank" class="comp-btn"><i class="bi bi-download"></i> Descargar</a>
+        <a href="${url}" target="_blank" class="comp-btn"><i class="bi bi-box-arrow-up-right"></i> Nueva pestaña</a>
+      </div>
+    </div>`;
+}
+
+/* ═══════════════════════════════════════════════
+   LIGHTBOX
+═══════════════════════════════════════════════ */
+function abrirLightbox(url, orderId, cliente, metodo) {
+  const lb     = document.getElementById('lightboxOverlay');
+  const lbImg  = document.getElementById('lbImg');
+  const lbLoad = document.getElementById('lbLoading');
+
+  lbImg.src = '';
+  lbImg.style.display = 'none';
+  lbLoad.style.display = 'flex';
+  lbLoad.innerHTML = '<div class="ld-spin"></div> Cargando imagen...';
+
+  document.getElementById('lbTitle').textContent  = `Comprobante · ${orderId}`;
+  document.getElementById('lbAbrir').href          = url;
+  document.getElementById('lbDescargar').href      = url;
+
+  document.getElementById('lbFooter').innerHTML = `
+    <div class="lb-foot-item"><span class="lb-foot-l">Pedido</span><span class="lb-foot-v">${orderId}</span></div>
+    <div class="lb-foot-item"><span class="lb-foot-l">Cliente</span><span class="lb-foot-v">${cliente || '—'}</span></div>
+    <div class="lb-foot-item"><span class="lb-foot-l">Método de pago</span><span class="lb-foot-v">${metodo || '—'}</span></div>`;
+
+  lb.classList.add('on');
+  document.body.style.overflow = 'hidden';
+
+  lbImg.onload  = () => { lbLoad.style.display = 'none'; lbImg.style.display = 'block'; };
+  lbImg.onerror = () => {
+    lbLoad.innerHTML = `
+      <div style="text-align:center">
+        <i class="bi bi-exclamation-triangle-fill" style="color:#f87171;font-size:2rem;display:block;margin-bottom:.8rem"></i>
+        <span style="color:#f87171;font-size:.85rem;display:block;margin-bottom:1rem">No se pudo cargar la imagen</span>
+        <a href="${url}" target="_blank" class="comp-btn comp-btn-gold">Abrir URL directamente</a>
+      </div>`;
+  };
+  lbImg.src = url;
+}
+
+function verComprobante(pedidoId) {
+  const pedido = pedidosData.find(p => String(p.id) === String(pedidoId));
+  if (!pedido || !pedido.comprobante_url) return;
+  abrirLightbox(
+    pedido.comprobante_url,
+    pedido.order_id || '#'+pedido.id,
+    pedido.cliente || '—',
+    pedido.metodo_pago || '—'
+  );
+}
+
+function cerrarLightbox() {
+  document.getElementById('lightboxOverlay').classList.remove('on');
+  document.body.style.overflow = 'hidden'; // el modal sigue abierto
+  const lbImg = document.getElementById('lbImg');
+  lbImg.src = '';
+  lbImg.style.display = 'none';
+  document.getElementById('lbLoading').innerHTML = '<div class="ld-spin"></div> Cargando imagen...';
+  document.getElementById('lbLoading').style.display = 'flex';
+}
+
+/* ═══════════════════════════════════════════════
+   BOTONES ACCIÓN MODAL
+═══════════════════════════════════════════════ */
 function renderBotonesAccion(estado) {
   const zona = document.getElementById('m-acciones');
   zona.innerHTML = '';
 
-  const cel = pedidoSeleccionado?.celular || '';
-
   if (estado === 'pendiente') {
     zona.innerHTML = `
-      <button class="m-btn m-btn-confirm" onclick="cambiarEstadoPedido('confirmado')">
-        <i class="bi bi-check-circle-fill"></i> Confirmar Pedido
-      </button>
-      <button class="m-btn m-btn-wa" onclick="enviarMensajeWA('confirmacion')">
-        <i class="bi bi-whatsapp"></i> Confirmar y notificar
-      </button>
-      <button class="m-btn m-btn-cancel" onclick="cambiarEstadoPedido('cancelado')">
-        <i class="bi bi-x-circle"></i> Cancelar Pedido
-      </button>`;
+      <button class="m-btn m-btn-confirm" onclick="cambiarEstadoPedido('confirmado')"><i class="bi bi-check-circle-fill"></i> Confirmar Pedido</button>
+      <button class="m-btn m-btn-wa" onclick="enviarMensajeWA('confirmacion')"><i class="bi bi-whatsapp"></i> Confirmar y notificar</button>
+      <button class="m-btn m-btn-cancel" onclick="cambiarEstadoPedido('cancelado')"><i class="bi bi-x-circle"></i> Cancelar Pedido</button>`;
   } else if (estado === 'confirmado') {
     zona.innerHTML = `
-      <button class="m-btn m-btn-envio" onclick="cambiarEstadoPedido('enviado')">
-        <i class="bi bi-truck"></i> Marcar como Enviado
-      </button>
-      <button class="m-btn m-btn-wa" onclick="enviarMensajeWA('envio')">
-        <i class="bi bi-whatsapp"></i> Notificar envío al cliente
-      </button>
-      <button class="m-btn m-btn-cancel" onclick="cambiarEstadoPedido('cancelado')">
-        <i class="bi bi-x-circle"></i> Cancelar
-      </button>`;
+      <button class="m-btn m-btn-envio" onclick="cambiarEstadoPedido('enviado')"><i class="bi bi-truck"></i> Marcar como Enviado</button>
+      <button class="m-btn m-btn-wa" onclick="enviarMensajeWA('envio')"><i class="bi bi-whatsapp"></i> Notificar envío al cliente</button>
+      <button class="m-btn m-btn-cancel" onclick="cambiarEstadoPedido('cancelado')"><i class="bi bi-x-circle"></i> Cancelar</button>`;
   } else if (estado === 'enviado') {
     zona.innerHTML = `
-      <button class="m-btn m-btn-wa" onclick="enviarMensajeWA('entregado')">
-        <i class="bi bi-whatsapp"></i> Notificar entrega
-      </button>
-      <button class="m-btn m-btn-confirm" onclick="cambiarEstadoPedido('confirmado')">
-        <i class="bi bi-arrow-counterclockwise"></i> Volver a Confirmado
-      </button>`;
+      <button class="m-btn m-btn-wa" onclick="enviarMensajeWA('entregado')"><i class="bi bi-whatsapp"></i> Notificar entrega</button>
+      <button class="m-btn m-btn-confirm" onclick="cambiarEstadoPedido('confirmado')"><i class="bi bi-arrow-counterclockwise"></i> Volver a Confirmado</button>`;
   } else if (estado === 'cancelado') {
     zona.innerHTML = `
-      <button class="m-btn m-btn-wa" onclick="enviarMensajeWA('cancelado')">
-        <i class="bi bi-whatsapp"></i> Notificar cancelación
-      </button>
-      <button class="m-btn m-btn-confirm" onclick="cambiarEstadoPedido('pendiente')">
-        <i class="bi bi-arrow-counterclockwise"></i> Reactivar pedido
-      </button>`;
+      <button class="m-btn m-btn-wa" onclick="enviarMensajeWA('cancelado')"><i class="bi bi-whatsapp"></i> Notificar cancelación</button>
+      <button class="m-btn m-btn-confirm" onclick="cambiarEstadoPedido('pendiente')"><i class="bi bi-arrow-counterclockwise"></i> Reactivar pedido</button>`;
   }
 }
 
@@ -445,45 +590,36 @@ function cerrarModalPedido() {
 }
 
 /* ═══════════════════════════════════════════════
-   CAMBIAR ESTADO PEDIDO
+   CAMBIAR ESTADO
 ═══════════════════════════════════════════════ */
 async function cambiarEstadoPedido(nuevoEstado) {
   if (!pedidoSeleccionado) return;
 
-  const { error } = await sb.from('orders')
-    .update({ estado: nuevoEstado })
-    .eq('id', pedidoSeleccionado.id);
-
-  if (error) {
-    toast('Error actualizando estado: '+error.message, 'fail');
-    return;
-  }
+  const { error } = await sb.from('orders').update({ estado: nuevoEstado }).eq('id', pedidoSeleccionado.id);
+  if (error) { toast('Error actualizando estado: '+error.message, 'fail'); return; }
 
   pedidoSeleccionado.estado = nuevoEstado;
   const lbl = { pendiente:'Pendiente', confirmado:'Confirmado ✓', enviado:'Enviado 🚚', cancelado:'Cancelado' }[nuevoEstado];
   toast(`Pedido marcado como: ${lbl}`, 'ok');
 
-  // Actualizar UI del modal
   const cls = { pendiente:'tpe', confirmado:'tok', enviado:'tenv', cancelado:'tca' }[nuevoEstado] || 'tpe';
   const ico = { pendiente:'bi-clock-fill', confirmado:'bi-check-circle-fill', enviado:'bi-truck', cancelado:'bi-x-circle-fill' }[nuevoEstado] || 'bi-clock-fill';
   document.getElementById('m-estado').innerHTML = `<span class="tag ${cls}"><i class="bi ${ico}"></i> ${lbl}</span>`;
   renderBotonesAccion(nuevoEstado);
-
-  // Recargar lista
   cargarPedidos();
 }
 
 /* ═══════════════════════════════════════════════
-   ENVIAR MENSAJE WHATSAPP AL CLIENTE
+   WHATSAPP
 ═══════════════════════════════════════════════ */
 function enviarMensajeWA(tipo) {
   if (!pedidoSeleccionado) return;
-  const p = pedidoSeleccionado;
+  const p   = pedidoSeleccionado;
   const cel = (p.celular || '').replace(/\D/g, '');
   if (!cel) { toast('El cliente no tiene celular registrado', 'fail'); return; }
 
-  const num    = cel.startsWith('57') ? cel : '57' + cel;
-  const nombre = (p.cliente || 'cliente').split(' ')[0];
+  const num     = cel.startsWith('57') ? cel : '57' + cel;
+  const nombre  = (p.cliente || 'cliente').split(' ')[0];
   const orderId = p.order_id || '#' + p.id;
   const total   = '$' + (Number(p.total) || 0).toLocaleString('es-CO') + ' COP';
 
@@ -491,77 +627,41 @@ function enviarMensajeWA(tipo) {
   try { prods = JSON.parse(p.productos_json || '[]'); } catch(e) {}
   const listaProd = prods.map(x => `• ${x.name} · Talla ${x.size} · x${x.qty}`).join('\n');
 
-  let msg = '';
-  let nuevoEstado = null;
+  let msg = '', nuevoEstado = null;
 
   if (tipo === 'confirmacion') {
     nuevoEstado = 'confirmado';
-    msg  = `¡Hola ${nombre}! \n\n`;
-    msg += `*Tu pedido ha sido CONFIRMADO* \n\n`;
-    msg += `*K1KO Streetwear*\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    msg += `*Pedido:* ${orderId}\n`;
-    msg += `*Total:* ${total}\n\n`;
-    msg += `*Productos:*\n${listaProd}\n\n`;
-    msg += `*Dirección:*\n${p.barrio} — ${p.direccion}\n`;
-    msg += `Recibe: ${p.recibe}\n\n`;
-    msg += `Tu pedido llegará en *24 horas hábiles*.\n\n`;
-    msg += `*K1KO Streetwear* 🖤`;
-
+    msg = `¡Hola ${nombre}! \n\n*Tu pedido ha sido CONFIRMADO* \n\n*K1KO Streetwear*\n━━━━━━━━━━━━━━━━━━━━━━━━\n*Pedido:* ${orderId}\n*Total:* ${total}\n\n*Productos:*\n${listaProd}\n\n*Dirección:*\n${p.barrio} — ${p.direccion}\nRecibe: ${p.recibe}\n\nTu pedido llegará en *24 horas hábiles*.\n\n*K1KO Streetwear* 🖤`;
   } else if (tipo === 'envio') {
     nuevoEstado = 'enviado';
-    msg  = `¡Hola ${nombre}! \n\n`;
-    msg += `*Tu pedido está en camino* \n\n`;
-    msg += `*K1KO Streetwear*\n━━━━━━━━━━━━━━━━━━━━━━━━\n`;
-    msg += `*Pedido:* ${orderId}\n\n`;
-    msg += `*Productos:*\n${listaProd}\n\n`;
-    msg += `*Dirección:* ${p.barrio} — ${p.direccion}\n`;
-    msg += `Recibe: ${p.recibe}\n\n`;
-    msg += `Te contactaremos cuando lleguemos.\n*K1KO Streetwear*`;
-
+    msg = `¡Hola ${nombre}! \n\n*Tu pedido está en camino* \n\n*K1KO Streetwear*\n━━━━━━━━━━━━━━━━━━━━━━━━\n*Pedido:* ${orderId}\n\n*Productos:*\n${listaProd}\n\n*Dirección:* ${p.barrio} — ${p.direccion}\nRecibe: ${p.recibe}\n\nTe contactaremos cuando lleguemos.\n*K1KO Streetwear*`;
   } else if (tipo === 'entregado') {
-    msg  = `¡Hola ${nombre}! \n\n`;
-    msg += `*Tu pedido fue ENTREGADO exitosamente* \n\n`;
-    msg += `Gracias por tu compra. ¡Esperamos que ames tu ropa! \n`;
-    msg += `Síguenos en Instagram *@k1ko45* para ver nuevos drops!\n\n`;
-    msg += `*K1KO Streetwear* `;
-
+    msg = `¡Hola ${nombre}! \n\n*Tu pedido fue ENTREGADO exitosamente* \n\nGracias por tu compra. ¡Esperamos que ames tu ropa! \nSíguenos en Instagram *@k1ko45* para ver nuevos drops!\n\n*K1KO Streetwear*`;
   } else if (tipo === 'cancelado') {
-    msg  = `Hola ${nombre},\n\n`;
-    msg += `Lamentamos informarte que tu pedido *${orderId}* ha sido cancelado.\n\n`;
-    msg += `Si tienes dudas escríbenos con gusto te ayudamos.\n\n`;
-    msg += `*K1KO Streetwear* `;
+    msg = `Hola ${nombre},\n\nLamentamos informarte que tu pedido *${orderId}* ha sido cancelado.\n\nSi tienes dudas escríbenos, con gusto te ayudamos.\n\n*K1KO Streetwear*`;
   }
 
-  // 1. Abrir WhatsApp INMEDIATAMENTE (sin esperar Supabase)
- window.location.href = `https://api.whatsapp.com/send?phone=${num}&text=${encodeURIComponent(msg)}`;
+  window.location.href = `https://api.whatsapp.com/send?phone=${num}&text=${encodeURIComponent(msg)}`;
   toast(`Mensaje enviado a ${nombre} ✓`, 'ok');
-
-  // 2. Actualizar estado en Supabase EN SEGUNDO PLANO (no bloquea)
-  if (nuevoEstado) {
-    cambiarEstadoPedido(nuevoEstado);
-  }
+  if (nuevoEstado) cambiarEstadoPedido(nuevoEstado);
 }
 
 /* ═══════════════════════════════════════════════
-   NOTIFICACIÓN NUEVO PEDIDO (realtime)
+   NOTIFICACIÓN NUEVO PEDIDO
 ═══════════════════════════════════════════════ */
 function notificarNuevoPedido(pedido) {
-  // Sonido
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
+    const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+    const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+    osc.connect(gain); gain.connect(ctx.destination);
     osc.frequency.setValueAtTime(880, ctx.currentTime);
     osc.frequency.setValueAtTime(1100, ctx.currentTime + 0.1);
     gain.gain.setValueAtTime(0.3, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.4);
+    osc.start(ctx.currentTime); osc.stop(ctx.currentTime + 0.4);
   } catch(e) {}
 
-  // Toast especial
   const t = document.getElementById('toast');
   document.getElementById('tMsg').textContent = `🛍️ Nuevo pedido de ${pedido.cliente || 'cliente'} · $${Number(pedido.total||0).toLocaleString('es-CO')} COP`;
   t.className = 'toast nuevo on';
@@ -585,20 +685,13 @@ async function cargarProductos() {
     const precio = p.price ? '$'+Number(p.price).toLocaleString('es-CO') : '—';
     return `
     <div class="pc" id="pc-${p.id}">
-      <div class="pc-img">
-        <img src="${p.image||''}" alt="${p.name}" onerror="this.parentElement.innerHTML='<span class=sc-ph>K1KO</span>'">
-      </div>
+      <div class="pc-img"><img src="${p.image||''}" alt="${p.name}" onerror="this.parentElement.innerHTML='<span class=sc-ph>K1KO</span>'"></div>
       <div class="pc-info">
         <div class="pc-name">${p.name}</div>
-        <div class="pc-meta">
-          <span class="pc-price">${precio}</span>
-          <span class="pc-stock">${p.stock} uds</span>
-        </div>
+        <div class="pc-meta"><span class="pc-price">${precio}</span><span class="pc-stock">${p.stock} uds</span></div>
         <div class="pc-id">ID: ${p.id}</div>
       </div>
-      <button class="pc-del" onclick="eliminarProducto('${p.id}','${p.image||''}')">
-        <i class="bi bi-trash3-fill"></i> Eliminar
-      </button>
+      <button class="pc-del" onclick="eliminarProducto('${p.id}','${p.image||''}')"><i class="bi bi-trash3-fill"></i> Eliminar</button>
     </div>`;
   }).join('');
 }
@@ -616,33 +709,34 @@ async function agregarProducto() {
   const stock  = document.getElementById('pStock').value.trim();
   const file   = document.getElementById('fotoInput').files[0];
   const btn    = document.getElementById('btnAgregar');
-  if (!nombre)               { toast('Ingresa el nombre','fail'); return; }
-  if (!precio||isNaN(precio)){ toast('Ingresa un precio válido','fail'); return; }
-  if (!stock||isNaN(stock))  { toast('Ingresa el stock inicial','fail'); return; }
-  if (!file)                 { toast('Selecciona una foto','fail'); return; }
+  if (!nombre)                { toast('Ingresa el nombre','fail'); return; }
+  if (!precio||isNaN(precio)) { toast('Ingresa un precio válido','fail'); return; }
+  if (!stock||isNaN(stock))   { toast('Ingresa el stock inicial','fail'); return; }
+  if (!file)                  { toast('Selecciona una foto','fail'); return; }
+
   const pid = nombre.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'');
-  btn.disabled = true;
-  btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Subiendo...';
+  btn.disabled = true; btn.innerHTML = '<i class="bi bi-arrow-repeat"></i> Subiendo...';
+
   const ext = file.name.split('.').pop();
-  const fileName = `${pid}.${ext}`;
-  const { error: uploadErr } = await sb.storage.from('products').upload(fileName, file, { upsert:true });
+  const { error: uploadErr } = await sb.storage.from('products').upload(`${pid}.${ext}`, file, { upsert:true });
   if (uploadErr) {
     toast('Error subiendo imagen: '+uploadErr.message,'fail');
     btn.disabled=false; btn.innerHTML='<i class="bi bi-plus-circle-fill"></i> Agregar producto'; return;
   }
-  const imageUrl = STORAGE_URL + fileName;
+
+  const imageUrl = STORAGE_URL + `${pid}.${ext}`;
   const { error: dbErr } = await sb.from('products').insert({ id:pid, name:nombre, price:parseInt(precio), stock:parseInt(stock), image:imageUrl });
   btn.disabled=false; btn.innerHTML='<i class="bi bi-plus-circle-fill"></i> Agregar producto';
   if (dbErr) { toast('Error: '+dbErr.message,'fail'); return; }
+
   toast(`"${nombre}" agregado ✓`,'ok');
-  document.getElementById('pNombre').value='';
-  document.getElementById('pPrecio').value='';
-  document.getElementById('pStock').value='';
-  document.getElementById('fotoInput').value='';
-  document.getElementById('fotoPrev').src='';
+  document.getElementById('pNombre').value = '';
+  document.getElementById('pPrecio').value = '';
+  document.getElementById('pStock').value  = '';
+  document.getElementById('fotoInput').value = '';
+  document.getElementById('fotoPrev').src  = '';
   document.getElementById('fotoWrap').classList.remove('has-img');
-  cargarProductos();
-  cargarStock();
+  cargarProductos(); cargarStock();
 }
 
 async function eliminarProducto(pid, imageUrl) {
@@ -654,8 +748,7 @@ async function eliminarProducto(pid, imageUrl) {
   const { error } = await sb.from('products').delete().eq('id', pid);
   if (error) { toast('Error eliminando: '+error.message,'fail'); return; }
   toast(`"${pid}" eliminado ✓`,'ok');
-  cargarProductos();
-  cargarStock();
+  cargarProductos(); cargarStock();
 }
 
 /* ═══════════════════════════════════════════════
@@ -667,10 +760,14 @@ async function cambiarPass() {
   const p1 = document.getElementById('cP1').value;
   const p2 = document.getElementById('cP2').value;
   if (!p1||p1.length<8) { toast('Mínimo 8 caracteres','fail'); return; }
-  if (p1!==p2)          { toast('Las contraseñas no coinciden','fail'); return; }
+  if (p1!==p2)           { toast('Las contraseñas no coinciden','fail'); return; }
   const { error } = await sb.auth.updateUser({ password:p1 });
   if (error) toast('Error: '+error.message,'fail');
-  else { toast('Contraseña actualizada ✓','ok'); document.getElementById('cP1').value=''; document.getElementById('cP2').value=''; }
+  else {
+    toast('Contraseña actualizada ✓','ok');
+    document.getElementById('cP1').value = '';
+    document.getElementById('cP2').value = '';
+  }
 }
 
 /* ═══════════════════════════════════════════════
@@ -686,10 +783,9 @@ function toggleOjo() {
 let _tt;
 function toast(msg, tipo='ok') {
   const t = document.getElementById('toast');
-  const i = document.getElementById('tIco');
   document.getElementById('tMsg').textContent = msg;
   t.className = 'toast '+tipo+' on';
-  i.className = tipo==='ok' ? 'bi bi-check-circle-fill' : 'bi bi-x-circle-fill';
+  document.getElementById('tIco').className = tipo==='ok' ? 'bi bi-check-circle-fill' : 'bi bi-x-circle-fill';
   clearTimeout(_tt);
   _tt = setTimeout(() => t.classList.remove('on'), 3500);
 }
