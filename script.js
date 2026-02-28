@@ -529,17 +529,17 @@ function selectPay(label, method) {
 
   if (method === 'nequi') {
     refBanner.classList.add('nequi');
-    refBanner.innerHTML = `<span>📱</span><span>Transfiere al <strong>3128462280</strong> por Nequi y adjuntá el comprobante abajo.</span>`;
+    refBanner.innerHTML = `<span>📱</span><span>Transfiere al <strong>3148547565</strong> por Nequi y adjuntá el comprobante abajo.</span>`;
     refFields.style.display    = 'block';
     uploaderWrap.style.display = 'block';
   } else if (method === 'daviplata') {
     refBanner.classList.add('daviplata');
-    refBanner.innerHTML = `<span>📱</span><span>Transfiere al <strong>3128462280</strong> por Daviplata y adjuntá el comprobante abajo.</span>`;
+    refBanner.innerHTML = `<span>📱</span><span>Transfiere al <strong>3148547565</strong> por Daviplata y adjuntá el comprobante abajo.</span>`;
     refFields.style.display    = 'block';
     uploaderWrap.style.display = 'block';
   } else if (method === 'bancolombia') {
     refBanner.classList.add('bancolombia');
-    refBanner.innerHTML = `<span>🏦</span><span>Transfiere a cuenta <strong>XXX-XXXXXXXX</strong> Bancolombia y adjuntá el comprobante abajo.</span>`;
+    refBanner.innerHTML = `<span>🏦</span><span>Transfiere a cuenta <strong>3148547565</strong> Bancolombia y adjuntá el comprobante abajo.</span>`;
     refFields.style.display    = 'block';
     uploaderWrap.style.display = 'block';
   } else if (method === 'contraentrega') {
