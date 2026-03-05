@@ -13,27 +13,37 @@ let pedidoSeleccionado = null;
    ARRANQUE
 ═══════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', async () => {
+  // ── Login ──
   document.getElementById('btnLogin').onclick = doLogin;
   document.getElementById('btnOjo').onclick   = toggleOjo;
   document.getElementById('inEmail').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
   document.getElementById('inPass').addEventListener('keydown',  e => { if(e.key==='Enter') doLogin(); });
 
+  // ── Dashboard ──
   document.getElementById('btnOut').onclick  = doLogout;
   document.getElementById('btnCfg').onclick  = guardarCfg;
   document.getElementById('btnPass').onclick = cambiarPass;
-
   document.getElementById('fotoInput')?.addEventListener('change', previewFoto);
   document.getElementById('btnAgregar')?.addEventListener('click', agregarProducto);
 
+  // ── Navegación ──
   document.querySelectorAll('.nav-btn[data-v]').forEach(b => {
-    b.onclick = () => irVista(b.dataset.v, b);
+    b.onclick = () => { irVista(b.dataset.v, b); cerrarSidebarMovil(); };
   });
 
+  // ── Sidebar móvil ──
+  const menuBtn = document.getElementById('adminMenuBtn');
+  const overlay = document.getElementById('sidebarOverlay');
+  if (menuBtn) menuBtn.addEventListener('click', toggleSidebarMovil);
+  if (overlay) overlay.addEventListener('click', cerrarSidebarMovil);
+
+  // ── Modal pedido ──
   document.getElementById('modalOverlay').addEventListener('click', function(e){
     if(e.target === this) cerrarModalPedido();
   });
   document.getElementById('btnCerrarModal').addEventListener('click', cerrarModalPedido);
 
+  // ── Filtros ──
   document.querySelectorAll('.filtro-btn').forEach(b => {
     b.addEventListener('click', () => {
       document.querySelectorAll('.filtro-btn').forEach(x => x.classList.remove('on'));
@@ -42,11 +52,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
+  // ── Búsqueda ──
   document.getElementById('buscarPedido').addEventListener('input', e => {
     buscarEnPedidos(e.target.value);
   });
 
-  // ESC cierra lightbox o modal
+  // ── ESC ──
   document.addEventListener('keydown', e => {
     if (e.key === 'Escape') {
       if (document.getElementById('lightboxOverlay').classList.contains('on')) {
@@ -57,11 +68,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // ── Sesión activa ──
   try {
     const { data:{ session } } = await sb.auth.getSession();
     if (session) abrirDash(session.user);
   } catch(e) {}
 });
+
+/* ═══════════════════════════════════════════════
+   SIDEBAR MÓVIL
+═══════════════════════════════════════════════ */
+
+/** Abre el sidebar lateral en móvil */
+function toggleSidebarMovil() {
+  document.querySelector('.sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('on');
+}
+
+/** Cierra el sidebar lateral en móvil */
+function cerrarSidebarMovil() {
+  document.querySelector('.sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('on');
+}
 
 /* ═══════════════════════════════════════════════
    LOGIN
@@ -158,8 +186,15 @@ function irVista(key, btn) {
   if (v)   v.classList.add('on');
   if (btn) btn.classList.add('on');
   const [t,s] = VISTAS[key] || [key.toUpperCase(),''];
+
+  // Topbar desktop
   document.getElementById('vtit').textContent = t;
   document.getElementById('vsub').textContent = s;
+
+  // Topbar móvil
+  const mobTitle = document.getElementById('adminTopbarTitle');
+  if (mobTitle) mobTitle.textContent = t;
+
   if (key === 'productos') cargarProductos();
   if (key === 'pedidos')   cargarPedidos();
 }
@@ -243,8 +278,11 @@ function statStock(prods) {
    PEDIDOS — CARGA
 ═══════════════════════════════════════════════ */
 async function cargarPedidos() {
+  // Mostrar loading tanto en tabla como en tarjetas
   const tbody = document.getElementById('tbody');
+  const cards = document.getElementById('pedidoCards');
   tbody.innerHTML = `<tr><td colspan="8" class="td-loading"><div class="ld-spin"></div>Cargando pedidos...</td></tr>`;
+  if (cards) cards.innerHTML = '<div style="text-align:center;padding:2rem;color:#444;font-size:.85rem">Cargando pedidos...</div>';
 
   const { data, error } = await sb.from('orders').select('*').order('created_at', { ascending: false }).limit(100);
 
@@ -270,19 +308,32 @@ function actualizarStatsOverview(data) {
   if (elPed)  elPed.textContent  = pedidos;
   if (elVenN) elVenN.textContent = pendientes + ' pendiente'+(pendientes!==1?'s':'');
 
+  // Badge sidebar
   const badge = document.getElementById('badge-pedidos');
   if (badge) {
     badge.textContent = pendientes > 0 ? pendientes : '';
     badge.style.display = pendientes > 0 ? 'flex' : 'none';
   }
+
+  // Badge topbar móvil
+  const mobBadge = document.getElementById('adminTopbarBadge');
+  if (mobBadge) {
+    mobBadge.textContent = pendientes > 0 ? pendientes : '';
+    mobBadge.classList.toggle('on', pendientes > 0);
+  }
 }
 
 /* ═══════════════════════════════════════════════
-   RENDERIZAR TABLA CON COLUMNA COMPROBANTE
+   RENDERIZAR — TABLA (desktop) + TARJETAS (móvil)
 ═══════════════════════════════════════════════ */
 function renderizarPedidos(lista) {
-  const tbody = document.getElementById('tbody');
+  renderizarTabla(lista);
+  renderizarTarjetas(lista);
+}
 
+/** Renderiza la tabla clásica de pedidos (visible en desktop) */
+function renderizarTabla(lista) {
+  const tbody = document.getElementById('tbody');
   if (!lista || lista.length === 0) {
     tbody.innerHTML = `<tr><td colspan="8" class="td-empty"><i class="bi bi-inbox"></i><br>Sin pedidos aún</td></tr>`;
     return;
@@ -297,7 +348,6 @@ function renderizarPedidos(lista) {
     const to  = o.total ? '$'+Number(o.total).toLocaleString('es-CO') : '—';
     const esPendiente = st === 'pendiente';
 
-    // Celda comprobante
     let compCell = '';
     if (o.comprobante_url) {
       compCell = `
@@ -323,6 +373,74 @@ function renderizarPedidos(lista) {
       <td><span class="tag ${cls}"><i class="bi ${ico}"></i> ${lbl}</span></td>
       <td>${fe}</td>
     </tr>`;
+  }).join('');
+}
+
+/**
+ * Renderiza tarjetas de pedido para móvil.
+ * Muestra la info más relevante de forma compacta.
+ */
+function renderizarTarjetas(lista) {
+  const cards = document.getElementById('pedidoCards');
+  if (!cards) return;
+
+  if (!lista || lista.length === 0) {
+    cards.innerHTML = `<div style="text-align:center;padding:3rem 1rem;color:var(--muted);font-size:.85rem"><i class="bi bi-inbox" style="font-size:2rem;display:block;margin-bottom:.8rem;opacity:.3"></i>Sin pedidos aún</div>`;
+    return;
+  }
+
+  cards.innerHTML = lista.map(o => {
+    const st  = o.estado || 'pendiente';
+    const lbl = { pendiente:'Pendiente', confirmado:'Confirmado ✓', enviado:'Enviado 🚚', cancelado:'Cancelado ✕' }[st] || st;
+    const cls = { pendiente:'tpe', confirmado:'tok', enviado:'tenv', cancelado:'tca' }[st] || 'tpe';
+    const ico = { pendiente:'bi-clock-fill', confirmado:'bi-check-circle-fill', enviado:'bi-truck', cancelado:'bi-x-circle-fill' }[st] || 'bi-clock-fill';
+    const fe  = o.created_at ? new Date(o.created_at).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+    const to  = o.total ? '$'+Number(o.total).toLocaleString('es-CO') : '—';
+    const esPendiente = st === 'pendiente';
+
+    // Comprobante mini
+    let compMini = '';
+    if (o.comprobante_url) {
+      compMini = `<div class="pc-order-comp"><img src="${o.comprobante_url}" onerror="this.style.display='none'"><span style="color:var(--green);font-size:.65rem;">Comprobante ✓</span></div>`;
+    } else if ((o.metodo_pago||'').toLowerCase() === 'contraentrega') {
+      compMini = `<div class="pc-order-comp"><i class="bi bi-house-fill" style="color:var(--muted)"></i><span>Contraentrega</span></div>`;
+    } else {
+      compMini = `<div class="pc-order-comp"><i class="bi bi-exclamation-circle-fill" style="color:#f87171"></i><span style="color:#f87171">Sin comprobante</span></div>`;
+    }
+
+    return `
+    <div class="pc-order ${st}" onclick="abrirModalPedido('${o.id}')">
+      <div class="pc-order-top">
+        <div>
+          <div class="pc-order-id">${o.order_id || '#'+o.id} ${esPendiente ? '<span class="dot-nuevo"></span>' : ''}</div>
+          <div class="pc-order-fecha">${fe}</div>
+        </div>
+        <span class="tag ${cls}"><i class="bi ${ico}"></i> ${lbl}</span>
+      </div>
+      <div class="pc-order-mid">
+        <div class="pc-order-field">
+          <span class="pc-order-label">Cliente</span>
+          <span class="pc-order-val">${o.cliente || '—'}</span>
+        </div>
+        <div class="pc-order-field">
+          <span class="pc-order-label">Ciudad</span>
+          <span class="pc-order-val">${(o.ciudad||'—').split(',')[0]}</span>
+        </div>
+        <div class="pc-order-field">
+          <span class="pc-order-label">Pago</span>
+          <span class="pc-order-val">${o.metodo_pago || '—'}</span>
+        </div>
+        <div class="pc-order-field">
+          <span class="pc-order-label">Productos</span>
+          <span class="pc-order-val" style="font-size:.72rem;color:var(--sub)">${(o.productos_resumen||'—').split('\n')[0]}</span>
+        </div>
+      </div>
+      <div class="pc-order-bot">
+        <span class="pc-order-total">${to}</span>
+        ${compMini}
+        <i class="bi bi-chevron-right" style="color:var(--muted);font-size:.8rem;margin-left:auto"></i>
+      </div>
+    </div>`;
   }).join('');
 }
 
@@ -367,7 +485,6 @@ function abrirModalPedido(id) {
   document.getElementById('m-email').textContent     = pedido.email || '—';
   document.getElementById('m-doc').textContent       = `${pedido.tipo_doc || ''} ${pedido.num_doc || ''}`.trim() || '—';
   document.getElementById('m-factura').textContent   = pedido.tipo_factura || '—';
-
   document.getElementById('m-ciudad').textContent    = pedido.ciudad || '—';
   document.getElementById('m-barrio').textContent    = pedido.barrio || '—';
   document.getElementById('m-direccion').textContent = pedido.direccion || '—';
@@ -379,8 +496,15 @@ function abrirModalPedido(id) {
     : '—';
   document.getElementById('m-costo-envio').textContent = envCosto;
   document.getElementById('m-costo-envio').style.color = Number(pedido.costo_envio) === 0 ? '#25D366' : '#fbbf24';
-  document.getElementById('m-subtotal').textContent = pedido.subtotal ? '$' + Number(pedido.subtotal).toLocaleString('es-CO') + ' COP' : '—';
 
+  // Mostrar cantidad de prendas del envío si existe
+  const shippingItems = pedido.shipping_items;
+  if (shippingItems) {
+    document.getElementById('m-costo-envio').textContent =
+      envCosto + ` (${shippingItems} prenda${shippingItems>1?'s':''})`;
+  }
+
+  document.getElementById('m-subtotal').textContent = pedido.subtotal ? '$' + Number(pedido.subtotal).toLocaleString('es-CO') + ' COP' : '—';
   document.getElementById('m-metodo').textContent = pedido.metodo_pago || '—';
   document.getElementById('m-ref').textContent    = pedido.referencia_pago || 'Sin referencia';
 
@@ -401,10 +525,7 @@ function abrirModalPedido(id) {
 
   document.getElementById('m-total').textContent = '$'+(Number(pedido.total)||0).toLocaleString('es-CO')+' COP';
 
-  // Renderizar comprobante
   renderComprobanteModal(pedido);
-
-  // Botones de acción
   renderBotonesAccion(st);
 
   document.getElementById('modalOverlay').classList.add('on');
@@ -412,14 +533,13 @@ function abrirModalPedido(id) {
 }
 
 /* ═══════════════════════════════════════════════
-   COMPROBANTE EN MODAL — RENDER
+   COMPROBANTE EN MODAL
 ═══════════════════════════════════════════════ */
 function renderComprobanteModal(pedido) {
   const zona   = document.getElementById('m-comprobante-zona');
   const metodo = (pedido.metodo_pago || '').toLowerCase();
   const url    = pedido.comprobante_url || '';
 
-  // 1. Contraentrega: no requiere comprobante
   if (metodo === 'contraentrega') {
     zona.innerHTML = `
       <div class="comp-box comp-box-ok">
@@ -432,7 +552,6 @@ function renderComprobanteModal(pedido) {
     return;
   }
 
-  // 2. Sin comprobante
   if (!url) {
     zona.innerHTML = `
       <div class="comp-box comp-box-warn">
@@ -445,7 +564,6 @@ function renderComprobanteModal(pedido) {
     return;
   }
 
-  // 3. PDF
   const esPDF = url.toLowerCase().includes('.pdf');
   if (esPDF) {
     zona.innerHTML = `
@@ -463,7 +581,6 @@ function renderComprobanteModal(pedido) {
     return;
   }
 
-  // 4. Imagen — preview con lightbox
   const oid     = pedido.order_id || '#'+pedido.id;
   const cliente = (pedido.cliente || '').replace(/'/g, '');
   const metodoE = (pedido.metodo_pago || '').replace(/'/g, '');
@@ -537,17 +654,12 @@ function abrirLightbox(url, orderId, cliente, metodo) {
 function verComprobante(pedidoId) {
   const pedido = pedidosData.find(p => String(p.id) === String(pedidoId));
   if (!pedido || !pedido.comprobante_url) return;
-  abrirLightbox(
-    pedido.comprobante_url,
-    pedido.order_id || '#'+pedido.id,
-    pedido.cliente || '—',
-    pedido.metodo_pago || '—'
-  );
+  abrirLightbox(pedido.comprobante_url, pedido.order_id || '#'+pedido.id, pedido.cliente || '—', pedido.metodo_pago || '—');
 }
 
 function cerrarLightbox() {
   document.getElementById('lightboxOverlay').classList.remove('on');
-  document.body.style.overflow = 'hidden'; // el modal sigue abierto
+  document.body.style.overflow = 'hidden';
   const lbImg = document.getElementById('lbImg');
   lbImg.src = '';
   lbImg.style.display = 'none';
@@ -594,7 +706,6 @@ function cerrarModalPedido() {
 ═══════════════════════════════════════════════ */
 async function cambiarEstadoPedido(nuevoEstado) {
   if (!pedidoSeleccionado) return;
-
   const { error } = await sb.from('orders').update({ estado: nuevoEstado }).eq('id', pedidoSeleccionado.id);
   if (error) { toast('Error actualizando estado: '+error.message, 'fail'); return; }
 
@@ -709,6 +820,7 @@ async function agregarProducto() {
   const stock  = document.getElementById('pStock').value.trim();
   const file   = document.getElementById('fotoInput').files[0];
   const btn    = document.getElementById('btnAgregar');
+
   if (!nombre)                { toast('Ingresa el nombre','fail'); return; }
   if (!precio||isNaN(precio)) { toast('Ingresa un precio válido','fail'); return; }
   if (!stock||isNaN(stock))   { toast('Ingresa el stock inicial','fail'); return; }
@@ -721,11 +833,14 @@ async function agregarProducto() {
   const { error: uploadErr } = await sb.storage.from('products').upload(`${pid}.${ext}`, file, { upsert:true });
   if (uploadErr) {
     toast('Error subiendo imagen: '+uploadErr.message,'fail');
-    btn.disabled=false; btn.innerHTML='<i class="bi bi-plus-circle-fill"></i> Agregar producto'; return;
+    btn.disabled=false; btn.innerHTML='<i class="bi bi-plus-circle-fill"></i> Agregar producto';
+    return;
   }
 
   const imageUrl = STORAGE_URL + `${pid}.${ext}`;
-  const { error: dbErr } = await sb.from('products').insert({ id:pid, name:nombre, price:parseInt(precio), stock:parseInt(stock), image:imageUrl });
+  const { error: dbErr } = await sb.from('products').insert({
+    id:pid, name:nombre, price:parseInt(precio), stock:parseInt(stock), image:imageUrl
+  });
   btn.disabled=false; btn.innerHTML='<i class="bi bi-plus-circle-fill"></i> Agregar producto';
   if (dbErr) { toast('Error: '+dbErr.message,'fail'); return; }
 

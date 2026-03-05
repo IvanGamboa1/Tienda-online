@@ -12,7 +12,7 @@
 </head>
 <body>
 
-<!-- LOGIN -->
+<!-- ═══════ LOGIN ═══════ -->
 <div id="loginScreen">
   <div class="glow gr"></div>
   <div class="glow gg"></div>
@@ -47,8 +47,13 @@
   </div>
 </div>
 
-<!-- DASHBOARD -->
+<!-- ═══════ DASHBOARD ═══════ -->
 <div id="dash">
+
+  <!-- Overlay sidebar móvil -->
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sb-head">
       <div class="sb-logo">K1KO</div>
@@ -78,7 +83,19 @@
     </div>
   </aside>
 
+  <!-- ═══════ MAIN ═══════ -->
   <main class="main">
+
+    <!-- Topbar móvil (solo visible en ≤768px) -->
+    <div class="admin-topbar-mobile" id="adminTopbarMobile">
+      <button class="admin-menu-btn" id="adminMenuBtn" type="button">
+        <i class="bi bi-list"></i>
+      </button>
+      <span class="admin-topbar-title" id="adminTopbarTitle">DASHBOARD</span>
+      <span class="admin-topbar-badge" id="adminTopbarBadge"></span>
+    </div>
+
+    <!-- Topbar desktop (oculto en móvil) -->
     <div class="topbar">
       <div>
         <h1 id="vtit">DASHBOARD</h1>
@@ -87,7 +104,7 @@
       <div class="live"><div class="dot"></div> En vivo</div>
     </div>
 
-    <!-- OVERVIEW -->
+    <!-- ══ OVERVIEW ══ -->
     <section class="vista on" id="v-overview">
       <div class="stats">
         <div class="st g"><i class="bi bi-currency-dollar st-bg"></i><div class="st-l">Ventas totales</div><div class="st-v" id="sv-ven">$0</div><div class="st-n" id="sv-ven-n">—</div></div>
@@ -99,13 +116,13 @@
       <div class="sgrid" id="g-overview"><div class="ldmsg">Cargando stock...</div></div>
     </section>
 
-    <!-- STOCK -->
+    <!-- ══ STOCK ══ -->
     <section class="vista" id="v-stock">
       <div class="v-head"><h2>GESTIÓN DE STOCK</h2><p>Usa + / − y luego Guardar · Cambios en tiempo real</p></div>
       <div class="sgrid" id="g-stock"><div class="ldmsg">Cargando stock...</div></div>
     </section>
 
-    <!-- PRODUCTOS -->
+    <!-- ══ PRODUCTOS ══ -->
     <section class="vista" id="v-productos">
       <div class="v-head"><h2>AGREGAR PRODUCTO</h2><p>Completa los datos y sube la foto de la camisa</p></div>
       <div class="form-prod">
@@ -129,7 +146,7 @@
       <div class="pgrid" id="g-productos"><div class="ldmsg">Cargando productos...</div></div>
     </section>
 
-    <!-- PEDIDOS -->
+    <!-- ══ PEDIDOS ══ -->
     <section class="vista" id="v-pedidos">
       <div class="pedidos-toolbar">
         <div class="filtros-wrap">
@@ -144,6 +161,8 @@
           <input type="text" id="buscarPedido" placeholder="Buscar por nombre, ID, celular...">
         </div>
       </div>
+
+      <!-- Tabla (visible en desktop) -->
       <div class="tw">
         <table class="dt">
           <thead>
@@ -163,9 +182,14 @@
           </tbody>
         </table>
       </div>
+
+      <!-- Tarjetas (visible en móvil) -->
+      <div class="pedido-cards" id="pedidoCards">
+        <div style="text-align:center;padding:2rem;color:#444;font-size:.85rem">Cargando pedidos...</div>
+      </div>
     </section>
 
-    <!-- CONFIG -->
+    <!-- ══ CONFIG ══ -->
     <section class="vista" id="v-config">
       <div class="v-head"><h2>CONFIGURACIÓN</h2><p>Ajustes generales de la tienda</p></div>
       <div class="cgrid">
@@ -184,10 +208,11 @@
         </div>
       </div>
     </section>
-  </main>
-</div>
 
-<!-- MODAL DETALLE PEDIDO -->
+  </main><!-- /main -->
+</div><!-- /dash -->
+
+<!-- ═══════ MODAL DETALLE PEDIDO ═══════ -->
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal-pedido">
     <div class="modal-header">
@@ -210,7 +235,6 @@
             <span id="m-total" class="modal-total-val">$0 COP</span>
           </div>
         </div>
-        <!-- COMPROBANTE -->
         <div class="modal-section">
           <div class="modal-section-title"><i class="bi bi-receipt-cutoff"></i> Comprobante de Pago</div>
           <div id="m-comprobante-zona"></div>
@@ -255,7 +279,7 @@
   </div>
 </div>
 
-<!-- LIGHTBOX COMPROBANTE -->
+<!-- ═══════ LIGHTBOX ═══════ -->
 <div class="lightbox-overlay" id="lightboxOverlay" onclick="cerrarLightbox()">
   <div class="lightbox-content" onclick="event.stopPropagation()">
     <div class="lightbox-header">
