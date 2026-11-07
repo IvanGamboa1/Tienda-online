@@ -1,0 +1,108 @@
+let installPrompt = null;
+const installButtons = [...document.querySelectorAll('[data-pwa-install]')];
+const installHints = [...document.querySelectorAll('[data-pwa-install-hint]')];
+const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent)
+  || (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
+const isInstalled = window.matchMedia('(display-mode: standalone)').matches
+  || window.navigator.standalone === true;
+
+function showInstallHint(message) {
+  installHints.forEach(hint => {
+    hint.textContent = message;
+    hint.hidden = false;
+  });
+}
+
+function showIosInstallGuide() {
+  const dialog = document.createElement('dialog');
+  if (typeof dialog.showModal !== 'function') {
+    showInstallHint('En Safari, toca Compartir y selecciona “Añadir a pantalla de inicio” para instalar K1KO.');
+    return;
+  }
+
+  dialog.className = 'pwa-install-dialog';
+  dialog.setAttribute('aria-labelledby', 'pwa-install-title');
+
+  const title = document.createElement('h2');
+  title.id = 'pwa-install-title';
+  title.textContent = 'Instalar K1KO en tu iPhone o iPad';
+
+  const steps = document.createElement('ol');
+  [
+    'Abre esta página en Safari y toca el botón Compartir (el cuadro con la flecha hacia arriba).',
+    'Desplázate por las opciones y selecciona “Añadir a pantalla de inicio”.',
+    'Toca “Añadir” para instalar K1KO en tu dispositivo.'
+  ].forEach(text => {
+    const step = document.createElement('li');
+    step.textContent = text;
+    steps.append(step);
+  });
+
+  const note = document.createElement('p');
+  note.textContent = 'Apple no permite que una página web se instale automáticamente; este es el paso requerido por iOS.';
+
+  const closeButton = document.createElement('button');
+  closeButton.type = 'button';
+  closeButton.className = 'pwa-install-dialog-close';
+  closeButton.textContent = 'Entendido';
+  closeButton.addEventListener('click', () => dialog.close());
+
+  dialog.append(title, steps, note, closeButton);
+  dialog.addEventListener('click', event => {
+    if (event.target === dialog) dialog.close();
+  });
+  dialog.addEventListener('close', () => dialog.remove(), { once: true });
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
+function showUnavailableMessage() {
+  const message = /android/i.test(window.navigator.userAgent)
+    ? 'La instalación directa aún no está disponible. Abre K1KO en Chrome para Android y comprueba que la dirección use HTTPS.'
+    : 'La instalación directa no está disponible en este navegador. Comprueba que K1KO esté abierta desde un navegador compatible y mediante HTTPS.';
+  showInstallHint(message);
+}
+
+if (isInstalled) {
+  installButtons.forEach(button => { button.hidden = true; });
+}
+
+window.addEventListener('beforeinstallprompt', event => {
+  event.preventDefault();
+  installPrompt = event;
+});
+
+installButtons.forEach(button => button.addEventListener('click', async () => {
+  if (isIos) {
+    showIosInstallGuide();
+    return;
+  }
+
+  if (!installPrompt) {
+    showUnavailableMessage();
+    return;
+  }
+
+  try {
+    await installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    installPrompt = null;
+    if (outcome === 'accepted') showInstallHint('K1KO se está instalando.');
+  } catch (error) {
+    installPrompt = null;
+    console.error('No se pudo iniciar la instalación de K1KO:', error);
+    showInstallHint('No se pudo iniciar la instalación. Comprueba tu conexión e inténtalo de nuevo.');
+  }
+}));
+
+window.addEventListener('appinstalled', () => {
+  installButtons.forEach(button => { button.hidden = true; });
+  showInstallHint('K1KO quedó instalada en tu dispositivo.');
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js')
+      .catch(error => console.error('No se pudo registrar el service worker:', error));
+  });
+}

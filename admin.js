@@ -205,9 +205,13 @@ function irVista(key, btn) {
 const MAXREF = 5;
 
 async function cargarStock() {
-  const { data, error } = await sb.from('products').select('id,name,stock');
+  const { data, error } = await sb.from('products').select('id,name,stock,image');
   if (error) { console.error(error); return; }
-  const clamped = data.map(p => ({ ...p, stock: Math.min(MAXREF, p.stock) }));
+  const clamped = (data || []).map(p => ({
+    ...p,
+    stock: Number.isFinite(Number(p.stock)) ? Math.min(MAXREF, Number(p.stock)) : 0,
+    image: p.image || `img/${p.id}.jpeg` || 'img/logo.jpeg'
+  }));
   clamped.forEach(p => { SL[p.id] = p.stock; });
   renderStock(clamped);
   statStock(clamped);
@@ -226,26 +230,27 @@ function renderStock(prods) {
 }
 
 function cardStock(p) {
-  const pct  = Math.min(100,(p.stock/MAXREF)*100);
-  const lo   = p.stock>0 && p.stock<=2;
-  const ze   = p.stock<=0;
-  const bc   = ze?'ze':lo?'lo':'';
-  const nc   = ze?'ze':lo?'lo':'ok';
+  const stock = Number(p.stock) || 0;
+  const pct   = Math.min(100, (stock / MAXREF) * 100);
+  const lo    = stock > 0 && stock <= 2;
+  const ze    = stock <= 0;
+  const bc    = ze ? 'ze' : lo ? 'lo' : '';
+  const nc    = ze ? 'ze' : lo ? 'lo' : 'ok';
   return `
   <div class="sc">
     <div class="sc-img">
-      <img src="img/${p.id}.jpeg" alt="${p.name}" onerror="this.parentElement.innerHTML='<span class=sc-ph>K1KO</span>'">
+      <img src="${p.image || 'img/logo.jpeg'}" alt="${p.name}" onerror="this.parentElement.innerHTML='<span class=sc-ph>K1KO</span>'">
     </div>
     <div class="sc-d">
       <div class="sc-n">${p.name}</div>
       <div class="sc-id">ID: ${p.id}</div>
       <div class="brow">
-        <div class="bar"><div class="bf ${bc}" style="width:${ze?100:pct}%"></div></div>
-        <span class="sn ${nc}" id="sn-${p.id}">${p.stock} uds</span>
+        <div class="bar"><div class="bf ${bc}" style="width:${ze ? 100 : pct}%"></div></div>
+        <span class="sn ${nc}" id="sn-${p.id}">${stock} uds</span>
       </div>
       <div class="ctrl">
         <button class="qb" onclick="ajQ('${p.id}',-1)">−</button>
-        <div class="qd" id="qd-${p.id}">${p.stock}</div>
+        <div class="qd" id="qd-${p.id}">${stock}</div>
         <button class="qb" onclick="ajQ('${p.id}',1)">+</button>
         <button class="qsave" onclick="saveStock('${p.id}')"><i class="bi bi-floppy-fill"></i> Guardar</button>
       </div>

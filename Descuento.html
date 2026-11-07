@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Descuentos - K1KO</title>
+    <meta name="theme-color" content="#080808">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="K1KO">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="img/pwa-icon-192.png">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600;700&family=Montserrat:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="script.js" defer></script>
+    <link rel="icon" type="image/jpeg" href="img/logo.jpeg">
+</head>
+<script defer src="/_vercel/insights/script.js"></script>
+<body data-page="descuento">
+<div class="custom-cursor"></div>
+<div class="parallax-bg"></div>
+<div id="pageLoader" class="loader active" aria-live="polite" aria-label="Cargando contenido">
+    <div class="loader-shell">
+        <div class="loader-logo">K1KO</div>
+        <div class="loader-track"><div class="loader-progress"></div></div>
+    </div>
+</div>
+
+<header>
+    <nav>
+        <span class="logo-text">K1KO</span>
+        <div class="hamburger" id="hamburger" onclick="toggleMenu()">
+            <span></span><span></span><span></span>
+        </div>
+        <ul class="nav-links" id="navLinks">
+            <li><a href="index.html" onclick="closeMenu()">Inicio</a></li>
+            <li><a href="Coleccion.html" onclick="closeMenu()">Colección</a></li>
+            <li><a href="Descuento.html" onclick="closeMenu()">Descuentos</a></li>
+        </ul>
+        <div class="nav-right">
+            <button class="store-install-trigger" type="button" data-pwa-install aria-label="Instalar K1KO en tu dispositivo">
+                <img src="img/pwa-icon-192.png" alt="" width="25" height="25">
+                <span class="store-install-label">Instalar app</span>
+            </button>
+            <div class="cart-icon" onclick="toggleCart()">
+                <i class="bi bi-bag-fill"></i>
+                <span class="cart-count">0</span>
+            </div>
+        </div>
+    </nav>
+</header>
+<p class="store-pwa-hint" data-pwa-install-hint role="status" hidden></p>
+
+<section class="collection" style="padding-top:9rem;">
+    <div class="section-title">
+        <h2>Ofertas y Descuentos</h2>
+        <p>Aprovecha antes de que se agoten</p>
+    </div>
+    <div class="products-grid" id="productsGridDescuento"></div>
+</section>
+
+<a href="admin.html" class="btn-admin" title="Panel de administración">
+  <i class="bi bi-shield-lock-fill"></i>
+</a>
+
+<div class="product-modal" id="productModal">
+    <div class="modal-content">
+        <div class="modal-close" onclick="closeProductModal()"><i class="bi bi-x-lg"></i></div>
+        <div class="modal-grid">
+            <div class="modal-images">
+                <img src="" alt="Producto" class="modal-main-image" id="modalMainImage" style="display:none;">
+                <svg id="modalSvgPlaceholder" class="modal-main-image" viewBox="0 0 600 500" xmlns="http://www.w3.org/2000/svg" style="display:block;"></svg>
+            </div>
+            <div class="modal-details">
+                <p class="modal-item-number" id="modalItemNumber"></p>
+                <h2 class="modal-title"      id="modalTitle"></h2>
+                <div id="modalStars" style="margin-bottom:1rem;"></div>
+                <div class="modal-price"     id="modalPrice"></div>
+                <p class="modal-description" id="modalDescription"></p>
+                <div class="modal-size-selector">
+                    <h4>Selecciona tu talla</h4>
+                    <div class="modal-sizes">
+                        <button class="modal-size-btn" onclick="selectModalSize(this)">S</button>
+                        <button class="modal-size-btn selected" onclick="selectModalSize(this)">M</button>
+                        <button class="modal-size-btn" onclick="selectModalSize(this)">L</button>
+                        <button class="modal-size-btn" onclick="selectModalSize(this)">XL</button>
+                    </div>
+                </div>
+                <div id="modal-qty-block"></div>
+                <div class="modal-features">
+                    <div class="modal-feature-item"><i class="bi bi-truck"></i><span><strong>ENVÍOS GRATIS</strong> — Aplica para ropa sin descuento</span></div>
+                    <div class="modal-feature-item"><i class="bi bi-clock"></i><span><strong>ENTREGA RÁPIDA</strong> — 24h en Buenaventura, 1-4 días al resto del país</span></div>
+                    <div class="modal-feature-item"><i class="bi bi-credit-card"></i><span><strong>MÉTODOS DE PAGO</strong> — Tarjeta, contraentrega y Cuenta Bancaria</span></div>
+                </div>
+                <button class="modal-add-cart" id="modal-add-cart-btn" onclick="addToCartFromModal()">
+                    <i class="bi bi-cart-plus-fill"></i> AGREGAR AL CARRITO
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="cart-sidebar" id="cartSidebar">
+    <div class="cart-header">
+        <h2>Mi Carrito</h2>
+        <i class="bi bi-x-lg close-cart" onclick="toggleCart()"></i>
+    </div>
+    <div class="cart-items" id="cartItems">
+        <div class="cart-empty"><i class="bi bi-bag-x"></i><p>Tu carrito está vacío</p></div>
+    </div>
+    <div class="cart-footer" id="cartFooter" style="display:none;">
+        <div class="cart-total">
+            <span>Total</span>
+            <span id="cartTotal">$0 COP</span>
+        </div>
+        <button class="checkout-button" onclick="openCheckout()">
+            <i class="bi bi-bag-check-fill"></i> <span>Proceder al Pago</span>
+        </button>
+    </div>
+</div>
+
+<div class="checkout-overlay" id="checkoutOverlay">
+    <div class="checkout-modal" id="checkoutModal">
+        <div class="co-header">
+            <div class="co-logo">K1KO</div>
+            <div class="co-steps">
+                <div class="co-step active" id="step-dot-1"><span>1</span><small>Identificación</small></div>
+                <div class="co-step-line" id="line-1"></div>
+                <div class="co-step" id="step-dot-2"><span>2</span><small>Envío</small></div>
+                <div class="co-step-line" id="line-2"></div>
+                <div class="co-step" id="step-dot-3"><span>3</span><small>Pago</small></div>
+            </div>
+            <button class="co-close" onclick="closeCheckout()"><i class="bi bi-x-lg"></i></button>
+        </div>
+        <div class="co-body">
+            <div class="co-left">
+                <div class="co-panel active" id="panel-1">
+                    <div class="co-panel-title"><span class="co-panel-num">1 de 3</span><h3>IDENTIFICACIÓN</h3></div>
+                    <div class="co-field-group"><label>Correo electrónico *</label><input type="email" id="co-email" placeholder="correo@ejemplo.com"><span class="co-error" id="err-email"></span></div>
+                    <div class="co-row">
+                        <div class="co-field-group"><label>Nombre *</label><input type="text" id="co-nombre" placeholder="Nombres"><span class="co-error" id="err-nombre"></span></div>
+                        <div class="co-field-group"><label>Apellido *</label><input type="text" id="co-apellido" placeholder="Apellidos"><span class="co-error" id="err-apellido"></span></div>
+                    </div>
+                    <div class="co-field-group"><label>Celular *</label><input type="tel" id="co-celular" placeholder="3001234567" maxlength="10"><span class="co-error" id="err-celular"></span></div>
+                    <div class="co-row">
+                        <div class="co-field-group"><label>Tipo de documento *</label><select id="co-tipoDoc"><option value="">Selecciona...</option><option value="CC">Cédula de Ciudadanía</option><option value="TI">Tarjeta de Identidad</option></select><span class="co-error" id="err-tipoDoc"></span></div>
+                        <div class="co-field-group"><label>Número de documento *</label><input type="text" id="co-numDoc" placeholder="Nº de Documento"><span class="co-error" id="err-numDoc"></span></div>
+                    </div>
+                    <div class="co-field-group"><label>Tipo de factura *</label><select id="co-tipoFactura"><option value="">Selecciona...</option><option value="persona">Persona Natural</option><option value="empresa">Empresa / NIT</option></select><span class="co-error" id="err-tipoFactura"></span></div>
+                    <button class="co-btn-next" onclick="goStep(2)">IR A ENVÍO <i class="bi bi-arrow-right"></i></button>
+                </div>
+                <div class="co-panel" id="panel-2">
+                    <div class="co-panel-title"><span class="co-panel-num">2 de 3</span><h3>ENVÍO</h3></div>
+                    <p class="co-info-text">Hacemos envíos a todas las ciudades de Colombia con acceso por carretera 🚚</p>
+                    <div class="co-field-group">
+                        <label>Ciudad de destino *</label>
+                        <div class="co-city-wrap" id="co-city-wrap">
+                            <div class="co-city-search-box">
+                                <i class="bi bi-search"></i>
+                                <input type="text" id="co-city-search" placeholder="Busca tu ciudad..." autocomplete="off" oninput="filterCities(this.value)" onfocus="openCityDropdown()" onclick="openCityDropdown()">
+                                <button class="co-city-clear" id="co-city-clear" onclick="clearCity()" style="display:none" type="button"><i class="bi bi-x"></i></button>
+                            </div>
+                            <div class="co-city-dropdown" id="co-city-dropdown" style="display:none">
+                                <div class="co-city-list" id="co-city-list"></div>
+                            </div>
+                        </div>
+                        <span class="co-error" id="err-ciudad"></span>
+                    </div>
+                    <div class="co-city-box" id="co-city-box" style="display:none">
+                        <div class="co-city-box-header">
+                            <div class="co-city-box-icon"><i class="bi bi-geo-alt-fill"></i></div>
+                            <div class="co-city-box-info">
+                                <div class="co-city-box-name" id="co-city-box-name">—</div>
+                                <div class="co-city-box-dept" id="co-city-box-dept">—</div>
+                            </div>
+                            <button type="button" class="co-city-box-change" onclick="clearCity()"><i class="bi bi-pencil"></i> Cambiar</button>
+                        </div>
+                        <div class="co-city-box-grid">
+                            <div class="co-city-box-item"><i class="bi bi-clock-fill"></i><div><div class="co-city-box-label">Tiempo estimado</div><div class="co-city-box-val" id="co-city-box-time">—</div></div></div>
+                            <div class="co-city-box-item"><i class="bi bi-truck"></i><div><div class="co-city-box-label">Tipo de envío</div><div class="co-city-box-val" id="co-city-box-type">Terrestre</div></div></div>
+                            <div class="co-city-box-item"><i class="bi bi-currency-dollar"></i><div><div class="co-city-box-label">Costo de envío</div><div class="co-city-box-val" id="co-city-box-cost" style="font-weight:800">—</div></div></div>
+                            <div class="co-city-box-item"><i class="bi bi-box-seam-fill"></i><div><div class="co-city-box-label">Transportadora</div><div class="co-city-box-val" id="co-city-box-carrier">—</div></div></div>
+                        </div>
+                    </div>
+                    <div class="co-field-group"><label>Barrio / Sector *</label><input type="text" id="co-municipio" placeholder="Ej: El Cristal, La Unión..."><span class="co-error" id="err-municipio"></span></div>
+                    <div class="co-field-group"><label>Dirección *</label><input type="text" id="co-direccion" placeholder="Ej: Carrera 24A # 83 - 15"><span class="co-error" id="err-direccion"></span></div>
+                    <div class="co-field-group"><label>Información adicional (opcional)</label><input type="text" id="co-adicional" placeholder="Apto, torre, referencia..."></div>
+                    <div class="co-field-group"><label>Nombre de quien recibe *</label><input type="text" id="co-recibe" placeholder="Nombre completo"><span class="co-error" id="err-recibe"></span></div>
+                    <div class="co-btn-row">
+                        <button class="co-btn-back" onclick="goStep(1)"><i class="bi bi-arrow-left"></i> Volver</button>
+                        <button class="co-btn-next" onclick="goStep(3)">IR A PAGO <i class="bi bi-arrow-right"></i></button>
+                    </div>
+                </div>
+                <div class="co-panel" id="panel-3">
+                    <div class="co-panel-title"><span class="co-panel-num">3 de 3</span><h3>PAGO</h3></div>
+                    <p class="co-info-text">Selecciona tu método de pago</p>
+                    <div class="co-payment-options" id="paymentOptions">
+                        <label class="co-pay-opt" onclick="selectPay(this,'nequi')"><input type="radio" name="pago" value="nequi"><span>Nequi</span><div class="co-pay-icons co-pay-nequi">N</div></label>
+                        <label class="co-pay-opt" onclick="selectPay(this,'daviplata')"><input type="radio" name="pago" value="daviplata"><span>Daviplata</span><div class="co-pay-icons co-pay-davi">D</div></label>
+                        <label class="co-pay-opt" onclick="selectPay(this,'bancolombia')"><input type="radio" name="pago" value="bancolombia"><span>Bancolombia</span><div class="co-pay-icons co-pay-banco"><i class="bi bi-building"></i></div></label>
+                        <label class="co-pay-opt" onclick="selectPay(this,'contraentrega')"><input type="radio" name="pago" value="contraentrega"><span>Contraentrega</span><div class="co-pay-icons"><i class="bi bi-cash-coin"></i></div></label>
+                    </div>
+                    <div class="co-ref-fields" id="refFields" style="display:none;">
+                        <div class="co-ref-banner" id="refBanner"></div>
+                    </div>
+                    <div id="uploaderWrap" style="display:none; margin-top:1rem;">
+                        <div class="co-uploader-label">Comprobante de pago <span style="color:#ef4444">*</span></div>
+                        <div class="co-drop-zone" id="co-drop-zone">
+                            <input type="file" id="co-file-input" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" onchange="handleComprobanteInput(this)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
+                            <span style="font-size:2rem;display:block;margin-bottom:.7rem;opacity:.4;">📎</span>
+                            <div class="co-dz-title">Arrastrá tu comprobante aquí</div>
+                            <div class="co-dz-sub">JPG, PNG, WEBP, HEIC o PDF · máx. 5 MB</div>
+                            <span class="co-dz-btn">Seleccionar archivo</span>
+                        </div>
+                        <div class="co-preview-wrap" id="co-preview-wrap" style="display:none;">
+                            <img id="co-preview-thumb" src="" alt="Comprobante" style="width:64px;height:64px;object-fit:cover;border:1px solid rgba(255,255,255,.1);flex-shrink:0;">
+                            <div style="flex:1;min-width:0;">
+                                <div id="co-preview-name" style="font-size:.82rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:.2rem;"></div>
+                                <div id="co-preview-size" style="font-size:.7rem;color:#666;margin-bottom:.3rem;"></div>
+                                <div style="display:flex;align-items:center;gap:.4rem;color:#25D366;font-size:.75rem;font-weight:600;">
+                                    <span style="width:15px;height:15px;background:rgba(37,211,102,.15);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem;">✓</span>
+                                    Comprobante listo
+                                </div>
+                            </div>
+                            <button onclick="quitarComprobante()" title="Quitar" style="background:none;border:none;color:rgba(255,255,255,.25);cursor:pointer;font-size:1rem;padding:.3rem;flex-shrink:0;transition:color .2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='rgba(255,255,255,.25)'">✕</button>
+                        </div>
+                        <div id="err-comprobante" style="font-size:.72rem;color:#ef4444;margin-top:.4rem;min-height:.9rem;"></div>
+                    </div>
+                    <div class="co-alt-info" id="altInfo" style="display:none;">
+                        <div class="co-info-banner"><i class="bi bi-info-circle"></i><span id="altInfoText"></span></div>
+                    </div>
+                    <div class="co-btn-row">
+                        <button class="co-btn-back" onclick="goStep(2)"><i class="bi bi-arrow-left"></i> Volver</button>
+                        <button class="co-btn-confirm" onclick="confirmOrder()"><i class="bi bi-check-circle-fill"></i> CONFIRMAR PEDIDO</button>
+                    </div>
+                </div>
+            </div>
+            <div class="co-right">
+                <div class="co-summary">
+                    <div class="co-summary-title">Resumen de compra <span id="co-item-count">0 productos</span></div>
+                    <div id="co-summary-items"></div>
+                    <div class="co-summary-divider"></div>
+                    <div class="co-summary-row"><span>Subtotal</span><span id="co-subtotal">$0</span></div>
+                    <div class="co-summary-row"><span>Envío</span><span id="co-envio-val" class="co-green">—</span></div>
+                    <div class="co-summary-row total"><span>TOTAL</span><span id="co-total-final">$0</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<a href="https://wa.me/573128462280" target="_blank" class="whatsapp-float"><i class="bi bi-whatsapp"></i></a>
+<button class="scroll-top" onclick="scrollToTop()"><i class="bi bi-arrow-up"></i></button>
+<script src="pwa.js"></script>
+</body>
+</html>

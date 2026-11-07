@@ -4,20 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>K1KO - Streetwear Premium Collection</title>
+    <meta name="theme-color" content="#080808">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="K1KO">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="img/pwa-icon-192.png">
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600;700&family=Montserrat:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="script.js" defer></script>
-    <link rel="icon" type="image/png" href="img/logo.jpeg">
+    <link rel="icon" type="image/jpeg" href="img/logo.jpeg">
 </head>
 <script defer src="/_vercel/insights/script.js"></script>
-<body>
+<body data-page="inicio">
 <div class="custom-cursor"></div>
 <div class="parallax-bg"></div>
-<div class="loader"><div class="loader-text">K1KO</div></div>
+<div id="pageLoader" class="loader active" aria-live="polite" aria-label="Cargando contenido">
+    <div class="loader-shell">
+        <div class="loader-logo">K1KO</div>
+        <div class="loader-track"><div class="loader-progress"></div></div>
+    </div>
+</div>
 
-<!-- Header -->
 <header>
     <nav>
         <span class="logo-text">K1KO</span>
@@ -25,12 +36,15 @@
             <span></span><span></span><span></span>
         </div>
         <ul class="nav-links" id="navLinks">
-            <li><a href="#inicio"    onclick="closeMenu()">Inicio</a></li>
-            <li><a href="#coleccion" onclick="closeMenu()">Colección</a></li>
-            <li><a href="#nosotros"  onclick="closeMenu()">Nosotros</a></li>
-            <li><a href="#contacto"  onclick="closeMenu()">Contacto</a></li>
+            <li><a href="index.html" onclick="closeMenu()">Inicio</a></li>
+            <li><a href="Coleccion.html" onclick="closeMenu()">Colección</a></li>
+            <li><a href="Descuento.html" onclick="closeMenu()">Descuentos</a></li>
         </ul>
         <div class="nav-right">
+            <button class="store-install-trigger" type="button" data-pwa-install aria-label="Instalar K1KO en tu dispositivo">
+                <img src="img/pwa-icon-192.png" alt="" width="25" height="25">
+                <span class="store-install-label">Instalar app</span>
+            </button>
             <div class="cart-icon" onclick="toggleCart()">
                 <i class="bi bi-bag-fill"></i>
                 <span class="cart-count">0</span>
@@ -38,31 +52,28 @@
         </div>
     </nav>
 </header>
+<p class="store-pwa-hint" data-pwa-install-hint role="status" hidden></p>
 
-<!-- Hero -->
 <section id="inicio" class="hero">
     <div class="hero-content">
         <h1>K1KO</h1>
         <p class="hero-subtitle">Streetwear Premium Collection</p>
-        <a href="#coleccion" class="cta-button">Explorar Colección</a>
+        <div class="hero-cta-row">
+            <a href="Coleccion.html" class="cta-button">Ver Colección</a>
+            <a href="Descuento.html" class="cta-button cta-outline">Ver Descuentos</a>
+        </div>
+        <div class="hero-socials">
+            <a href="https://www.instagram.com/k1ko45/" target="_blank" title="Instagram"><i class="bi bi-instagram"></i></a>
+            <a href="https://www.facebook.com/profile.php?id=61588181068165" target="_blank" title="Facebook"><i class="bi bi-facebook"></i></a>
+            <a href="https://wa.me/573128462280" target="_blank" title="WhatsApp"><i class="bi bi-whatsapp"></i></a>
+        </div>
     </div>
 </section>
 
-<!-- Botón Admin -->
 <a href="admin.html" class="btn-admin" title="Panel de administración">
   <i class="bi bi-shield-lock-fill"></i>
 </a>
 
-<!-- Colección -->
-<section id="coleccion" class="collection">
-    <div class="section-title">
-        <h2>Nueva Colección</h2>
-        <p>Diseños Exclusivos · Edición Limitada 2026</p>
-    </div>
-    <div class="products-grid" id="productsGrid"></div>
-</section>
-
-<!-- Modal Producto -->
 <div class="product-modal" id="productModal">
     <div class="modal-content">
         <div class="modal-close" onclick="closeProductModal()"><i class="bi bi-x-lg"></i></div>
@@ -74,6 +85,7 @@
             <div class="modal-details">
                 <p class="modal-item-number" id="modalItemNumber"></p>
                 <h2 class="modal-title"      id="modalTitle"></h2>
+                <div id="modalStars" style="margin-bottom:1rem;"></div>
                 <div class="modal-price"     id="modalPrice"></div>
                 <p class="modal-description" id="modalDescription"></p>
                 <div class="modal-size-selector">
@@ -99,49 +111,6 @@
     </div>
 </div>
 
-<!-- Nosotros -->
-<section id="nosotros" class="about">
-    <div class="about-content">
-        <h2>Sobre K1KO</h2>
-        <p>K1KO nace de la pasión por el streetwear auténtico y el arte urbano. Cada pieza es diseñada con atención al detalle, fusionando la cultura callejera con estética contemporánea.</p>
-        <p>Creemos en la calidad sobre la cantidad. Cada diseño es una edición limitada, hecha para quienes aprecian lo exclusivo y lo auténtico.</p>
-        <div class="about-stats">
-            <div class="stat-item"><div class="stat-number">100%</div><div class="stat-label">Algodón Premium</div></div>
-            <div class="stat-item"><div class="stat-number">2026</div><div class="stat-label">Colección Exclusiva</div></div>
-            <div class="stat-item"><div class="stat-number">24/7</div><div class="stat-label">Atención al Cliente</div></div>
-        </div>
-    </div>
-</section>
-
-<!-- Footer -->
-<footer id="contacto">
-    <div class="footer-content">
-        <div class="footer-section">
-            <h3>K1KO</h3>
-            <p>Streetwear premium que define tu estilo único.</p>
-        </div>
-        <div class="footer-section">
-            <h3>Enlaces</h3>
-            <p><a href="#inicio">Inicio</a></p>
-            <p><a href="#coleccion">Colección</a></p>
-            <p><a href="#nosotros">Nosotros</a></p>
-            <p><a href="#contacto">Contacto</a></p>
-        </div>
-        <div class="footer-section">
-            <h3>Síguenos</h3>
-            <div class="social-links">
-                <a href="https://www.instagram.com/k1ko45/?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw%3D%3D" target="_blank"><i class="bi bi-instagram"></i></a>
-                <a href="https://www.facebook.com/profile.php?id=61588181068165"  target="_blank"><i class="bi bi-facebook"></i></a>
-                <a href="https://wa.me/573128462280" target="_blank"><i class="bi bi-whatsapp"></i></a>
-            </div>
-        </div>
-    </div>
-    <div class="copyright">
-        <p>©2026 K1KO. Todos los derechos reservados. | Hecho en Buenaventura - Colombia | Hecho por IvanGamboa</p>
-    </div>
-</footer>
-
-<!-- Carrito -->
 <div class="cart-sidebar" id="cartSidebar">
     <div class="cart-header">
         <h2>Mi Carrito</h2>
@@ -161,7 +130,6 @@
     </div>
 </div>
 
-<!-- Checkout -->
 <div class="checkout-overlay" id="checkoutOverlay">
     <div class="checkout-modal" id="checkoutModal">
         <div class="co-header">
@@ -177,8 +145,6 @@
         </div>
         <div class="co-body">
             <div class="co-left">
-
-                <!-- ── PASO 1: IDENTIFICACIÓN ── -->
                 <div class="co-panel active" id="panel-1">
                     <div class="co-panel-title"><span class="co-panel-num">1 de 3</span><h3>IDENTIFICACIÓN</h3></div>
                     <div class="co-field-group"><label>Correo electrónico *</label><input type="email" id="co-email" placeholder="correo@ejemplo.com"><span class="co-error" id="err-email"></span></div>
@@ -194,8 +160,6 @@
                     <div class="co-field-group"><label>Tipo de factura *</label><select id="co-tipoFactura"><option value="">Selecciona...</option><option value="persona">Persona Natural</option><option value="empresa">Empresa / NIT</option></select><span class="co-error" id="err-tipoFactura"></span></div>
                     <button class="co-btn-next" onclick="goStep(2)">IR A ENVÍO <i class="bi bi-arrow-right"></i></button>
                 </div>
-
-                <!-- ── PASO 2: ENVÍO ── -->
                 <div class="co-panel" id="panel-2">
                     <div class="co-panel-title"><span class="co-panel-num">2 de 3</span><h3>ENVÍO</h3></div>
                     <p class="co-info-text">Hacemos envíos a todas las ciudades de Colombia con acceso por carretera 🚚</p>
@@ -238,48 +202,27 @@
                         <button class="co-btn-next" onclick="goStep(3)">IR A PAGO <i class="bi bi-arrow-right"></i></button>
                     </div>
                 </div>
-
-                <!-- ── PASO 3: PAGO ── -->
                 <div class="co-panel" id="panel-3">
                     <div class="co-panel-title"><span class="co-panel-num">3 de 3</span><h3>PAGO</h3></div>
                     <p class="co-info-text">Selecciona tu método de pago</p>
-
-                    <!-- Métodos -->
                     <div class="co-payment-options" id="paymentOptions">
                         <label class="co-pay-opt" onclick="selectPay(this,'nequi')"><input type="radio" name="pago" value="nequi"><span>Nequi</span><div class="co-pay-icons co-pay-nequi">N</div></label>
                         <label class="co-pay-opt" onclick="selectPay(this,'daviplata')"><input type="radio" name="pago" value="daviplata"><span>Daviplata</span><div class="co-pay-icons co-pay-davi">D</div></label>
                         <label class="co-pay-opt" onclick="selectPay(this,'bancolombia')"><input type="radio" name="pago" value="bancolombia"><span>Bancolombia</span><div class="co-pay-icons co-pay-banco"><i class="bi bi-building"></i></div></label>
                         <label class="co-pay-opt" onclick="selectPay(this,'contraentrega')"><input type="radio" name="pago" value="contraentrega"><span>Contraentrega</span><div class="co-pay-icons"><i class="bi bi-cash-coin"></i></div></label>
                     </div>
-
-                    <!-- Banner de instrucciones (oculto hasta seleccionar) -->
                     <div class="co-ref-fields" id="refFields" style="display:none;">
                         <div class="co-ref-banner" id="refBanner"></div>
                     </div>
-
-                    <!-- ══ UPLOADER DE COMPROBANTE ══ -->
                     <div id="uploaderWrap" style="display:none; margin-top:1rem;">
-
-                        <div class="co-uploader-label">
-                            Comprobante de pago <span style="color:#ef4444">*</span>
-                        </div>
-
-                        <!-- Drop Zone -->
+                        <div class="co-uploader-label">Comprobante de pago <span style="color:#ef4444">*</span></div>
                         <div class="co-drop-zone" id="co-drop-zone">
-                            <input
-                                type="file"
-                                id="co-file-input"
-                                accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
-                                onchange="handleComprobanteInput(this)"
-                                style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;"
-                            >
+                            <input type="file" id="co-file-input" accept="image/jpeg,image/png,image/webp,image/heic,application/pdf" onchange="handleComprobanteInput(this)" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;">
                             <span style="font-size:2rem;display:block;margin-bottom:.7rem;opacity:.4;">📎</span>
                             <div class="co-dz-title">Arrastrá tu comprobante aquí</div>
                             <div class="co-dz-sub">JPG, PNG, WEBP, HEIC o PDF · máx. 5 MB</div>
                             <span class="co-dz-btn">Seleccionar archivo</span>
                         </div>
-
-                        <!-- Preview (oculto hasta seleccionar) -->
                         <div class="co-preview-wrap" id="co-preview-wrap" style="display:none;">
                             <img id="co-preview-thumb" src="" alt="Comprobante" style="width:64px;height:64px;object-fit:cover;border:1px solid rgba(255,255,255,.1);flex-shrink:0;">
                             <div style="flex:1;min-width:0;">
@@ -292,26 +235,17 @@
                             </div>
                             <button onclick="quitarComprobante()" title="Quitar" style="background:none;border:none;color:rgba(255,255,255,.25);cursor:pointer;font-size:1rem;padding:.3rem;flex-shrink:0;transition:color .2s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='rgba(255,255,255,.25)'">✕</button>
                         </div>
-
                         <div id="err-comprobante" style="font-size:.72rem;color:#ef4444;margin-top:.4rem;min-height:.9rem;"></div>
                     </div>
-
-                    <!-- Contraentrega info -->
                     <div class="co-alt-info" id="altInfo" style="display:none;">
                         <div class="co-info-banner"><i class="bi bi-info-circle"></i><span id="altInfoText"></span></div>
                     </div>
-
                     <div class="co-btn-row">
                         <button class="co-btn-back" onclick="goStep(2)"><i class="bi bi-arrow-left"></i> Volver</button>
-                        <button class="co-btn-confirm" onclick="confirmOrder()">
-                            <i class="bi bi-check-circle-fill"></i> CONFIRMAR PEDIDO
-                        </button>
+                        <button class="co-btn-confirm" onclick="confirmOrder()"><i class="bi bi-check-circle-fill"></i> CONFIRMAR PEDIDO</button>
                     </div>
                 </div>
-
-            </div><!-- /co-left -->
-
-            <!-- Resumen -->
+            </div>
             <div class="co-right">
                 <div class="co-summary">
                     <div class="co-summary-title">Resumen de compra <span id="co-item-count">0 productos</span></div>
@@ -328,5 +262,6 @@
 
 <a href="https://wa.me/573128462280" target="_blank" class="whatsapp-float"><i class="bi bi-whatsapp"></i></a>
 <button class="scroll-top" onclick="scrollToTop()"><i class="bi bi-arrow-up"></i></button>
+<script src="pwa.js"></script>
 </body>
 </html>

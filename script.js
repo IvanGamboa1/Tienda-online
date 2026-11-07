@@ -138,10 +138,6 @@ let uploadedURL  = '';
 
 /* ══════════════════════════════════════════════════════════════
    HELPER: COSTO DE ENVÍO ESCALADO POR CANTIDAD DE PRENDAS
-   ─ zona free  → siempre $0
-   ─ 1 prenda   → precio base
-   ─ 2-3 prendas → base × 1.5  (redondeado a 500 COP)
-   ─ 4+ prendas  → base × 2    (redondeado a 500 COP)
 ══════════════════════════════════════════════════════════════ */
 function calcularEnvio(cityObj, totalPrendas) {
   if (!cityObj) return 0;
@@ -151,7 +147,6 @@ function calcularEnvio(cityObj, totalPrendas) {
   if (totalPrendas >= 4)      factor = 2;
   else if (totalPrendas >= 2) factor = 1.5;
   const raw = base * factor;
-  // Redondear al múltiplo de 500 más cercano
   return Math.ceil(raw / 500) * 500;
 }
 
@@ -185,7 +180,6 @@ function showOrderLoading(msg = 'Procesando tu pedido...') {
         <div class="ol-msg" id="ol-msg">${msg}</div>
       </div>`;
     document.body.appendChild(el);
-    // Estilos inline para no depender de CSS externo
     const style = document.createElement('style');
     style.id = 'ol-styles';
     style.textContent = `
@@ -210,7 +204,72 @@ function hideOrderLoading() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   CARGAR PRODUCTOS DESDE SUPABASE
+   CARGA DE PRODUCTOS — MULTI-PÁGINA
+   ► cargarProductosSegunPagina() detecta en qué página estás
+     (según qué grid exista en el HTML) y llama a la función
+     correspondiente. Se invoca desde el DOMContentLoaded final.
+══════════════════════════════════════════════════════════════ */
+async function cargarProductosSegunPagina() {
+  if (document.getElementById('productsGridDescuento')) {
+    await cargarDescuentos();
+  } else if (document.getElementById('productsGrid')) {
+    await cargarProductosDesdeSupabase();
+  }
+  // En index.html (inicio) no hay ningún grid — no se carga nada de productos ahí,
+  // pero el carrito y el checkout siguen funcionando normalmente si ya tienes ítems guardados.
+}
+
+/** Página /descuento: solo productos con discount_percent > 0 */
+async function cargarDescuentos() {
+  const { data, error } = await supabase.from('products').select('*').gt('discount_percent', 0);
+  if (error) { console.error('Error cargando descuentos:', error); return; }
+  const grid = document.getElementById('productsGridDescuento');
+  if (!data || data.length === 0) {
+    grid.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:#888;padding:3rem;">No hay productos en descuento en este momento. Vuelve pronto.</p>`;
+    return;
+  }
+  renderGridGenerico(data, 'productsGridDescuento');
+}
+
+/** Renderiza un grid de productos en cualquier contenedor (inicio o descuentos), con soporte de descuento */
+function renderGridGenerico(data, gridId) {
+  const grid = document.getElementById(gridId);
+  grid.innerHTML = '';
+  data.forEach(prod => {
+    products[prod.id] = {
+      id:          prod.id,
+      name:        prod.name,
+      price:       prod.price,
+      image:       prod.image,
+      description: prod.description || '',
+      itemNumber:  `Item: ${prod.id}`,
+      stock:       prod.stock
+    };
+    const hasDiscount = prod.discount_percent > 0;
+    const finalPrice  = hasDiscount ? Math.round(prod.price * (1 - prod.discount_percent / 100)) : prod.price;
+
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    card.id = `card-${prod.id}`;
+    card.setAttribute('onclick', `openProductModal('${prod.id}')`);
+    card.innerHTML = `
+      <div class="product-image-container">
+        <span class="product-badge ${hasDiscount ? 'badge-discount' : ''}" id="badge-${prod.id}">${hasDiscount ? '-' + prod.discount_percent + '%' : 'Nuevo'}</span>
+        <img src="${prod.image}" alt="${prod.name}" class="product-image">
+      </div>
+      <div class="product-info">
+        <h3 class="product-name">${prod.name}</h3>
+        ${hasDiscount
+          ? `<div class="product-price"><span style="text-decoration:line-through;color:#666;font-size:.85rem;margin-right:.5rem;">$${Number(prod.price).toLocaleString('es-CO')}</span>$${finalPrice.toLocaleString('es-CO')} COP</div>`
+          : `<div class="product-price">$${Number(prod.price).toLocaleString('es-CO')} COP</div>`}
+      </div>`;
+    grid.appendChild(card);
+  });
+  updateProductCards();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CARGAR PRODUCTOS DESDE SUPABASE (grid completo — /coleccion)
 ══════════════════════════════════════════════════════════════ */
 async function cargarProductosDesdeSupabase() {
   const { data, error } = await supabase.from('products').select('*');
@@ -218,7 +277,6 @@ async function cargarProductosDesdeSupabase() {
 
   const grid = document.getElementById('productsGrid');
   grid.innerHTML = '';
-  // Limpiar objeto products
   Object.keys(products).forEach(k => delete products[k]);
 
   data.forEach(prod => {
@@ -227,7 +285,7 @@ async function cargarProductosDesdeSupabase() {
       name:        prod.name,
       price:       prod.price,
       image:       prod.image,
-      description: prod.description || '',   // ← columna description de Supabase
+      description: prod.description || '',
       itemNumber:  `Item: ${prod.id}`,
       stock:       prod.stock
     };
@@ -261,18 +319,12 @@ supabase.channel('stock-changes')
 /* ══════════════════════════════════════════════════════════════
    STOCK
 ══════════════════════════════════════════════════════════════ */
-
-/** Cuántas unidades del producto PID hay actualmente en el carrito */
 function qtyInCart(pid) {
   return cart.filter(i => i.productId === pid).reduce((s, i) => s + i.qty, 0);
 }
-
-/** Stock disponible real = stock Supabase − unidades ya en carrito */
 function availableStock(pid) {
   return (products[pid]?.stock ?? 0) - qtyInCart(pid);
 }
-
-/** Descuenta stock en Supabase al confirmar el pedido */
 async function descontarStockSupabase(productId, cantidad) {
   const { data, error } = await supabase
     .from('products').select('stock').eq('id', productId).single();
@@ -282,8 +334,6 @@ async function descontarStockSupabase(productId, cantidad) {
     .from('products').update({ stock: nuevoStock }).eq('id', productId);
   if (upErr) console.error('Error actualizando stock:', upErr);
 }
-
-/** Sincroniza el stock local con los valores actuales de Supabase */
 async function syncStockFromSupabase() {
   const { data, error } = await supabase.from('products').select('id, stock');
   if (error) return;
@@ -294,8 +344,6 @@ async function syncStockFromSupabase() {
 /* ══════════════════════════════════════════════════════════════
    MODAL PRODUCTO
 ══════════════════════════════════════════════════════════════ */
-
-/** Abre el modal de detalle para el producto con la clave `key` */
 function openProductModal(key) {
   if (availableStock(key) <= 0) return;
   currentProductKey = key;
@@ -319,26 +367,17 @@ function openProductModal(key) {
   document.getElementById('productModal').classList.add('active');
   document.body.style.overflow = 'hidden';
 }
-
-/** Cierra el modal de producto */
 function closeProductModal() {
   document.getElementById('productModal').classList.remove('active');
   document.body.style.overflow = 'auto';
 }
-
-/** Marca la talla seleccionada en el modal */
 function selectModalSize(btn) {
   document.querySelectorAll('.modal-size-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
 }
-
-/**
- * Renderiza el selector de cantidad en el modal.
- * Usa el stock real del producto (sin hardcode).
- */
 function renderModalQty() {
   const avail    = availableStock(currentProductKey);
-  const maxStock = products[currentProductKey]?.stock ?? 0;  // stock total del producto
+  const maxStock = products[currentProductKey]?.stock ?? 0;
   const qtyBlock = document.getElementById('modal-qty-block');
   if (!qtyBlock) return;
 
@@ -375,15 +414,11 @@ function renderModalQty() {
     btn.innerHTML = `<i class="bi bi-cart-plus-fill"></i> AGREGAR${modalQty > 1 ? ' ' + modalQty + ' uds —' : ''} $${(currentProduct.price * modalQty).toLocaleString('es-CO')} COP`;
   }
 }
-
-/** Cambia la cantidad en el modal (delta = +1 o -1) */
 function changeModalQty(d) {
   const avail = availableStock(currentProductKey);
   modalQty = Math.min(Math.max(modalQty + d, 1), avail);
   renderModalQty();
 }
-
-/** Agrega el producto actual al carrito desde el modal */
 function addToCartFromModal() {
   if (!currentProduct) return;
   const key   = currentProductKey;
@@ -416,18 +451,12 @@ function addToCartFromModal() {
 /* ══════════════════════════════════════════════════════════════
    CARRITO
 ══════════════════════════════════════════════════════════════ */
-
-/** Abre / cierra el sidebar del carrito */
 function toggleCart() { document.getElementById('cartSidebar').classList.toggle('active'); }
-
-/** Elimina un ítem del carrito por su ID */
 function removeFromCart(id) {
   cart = cart.filter(i => i.id !== id);
   saveCartLS();
   updateCart();
 }
-
-/** Cambia la cantidad de un ítem en el carrito */
 function cartChangeQty(id, delta) {
   const item = cart.find(i => i.id === id);
   if (!item) return;
@@ -439,8 +468,6 @@ function cartChangeQty(id, delta) {
   saveCartLS();
   updateCart();
 }
-
-/** Re-renderiza todo el carrito (sidebar + badge + footer) */
 function updateCart() {
   const items    = document.getElementById('cartItems');
   const footer   = document.getElementById('cartFooter');
@@ -480,8 +507,6 @@ function updateCart() {
   footer.style.display = 'block';
   updateProductCards();
 }
-
-/** Actualiza el badge/estado de cada tarjeta de producto según el stock disponible */
 function updateProductCards() {
   Object.keys(products).forEach(key => {
     const card  = document.getElementById(`card-${key}`);
@@ -507,10 +532,10 @@ function updateProductCards() {
       card.setAttribute('onclick', `openProductModal('${key}')`);
       const ov = card.querySelector('.oos-overlay');
       if (ov) ov.remove();
-      if (avail <= 2) {
+      if (avail <= 2 && !badge.classList.contains('badge-discount')) {
         badge.textContent = `¡Solo ${avail} disponible${avail > 1 ? 's' : ''}!`;
         badge.className   = 'product-badge badge-low';
-      } else {
+      } else if (!badge.classList.contains('badge-discount')) {
         badge.textContent = 'Nuevo';
         badge.className   = 'product-badge';
       }
@@ -521,8 +546,6 @@ function updateProductCards() {
 /* ══════════════════════════════════════════════════════════════
    CHECKOUT — APERTURA / CIERRE
 ══════════════════════════════════════════════════════════════ */
-
-/** Abre el checkout y resetea todo el estado del flujo */
 function openCheckout() {
   if (cart.length === 0) return;
   selectedCity = null;
@@ -533,7 +556,6 @@ function openCheckout() {
   document.getElementById('cartSidebar').classList.remove('active');
   document.body.style.overflow = 'hidden';
 
-  // Limpiar selector de ciudad
   const csi = document.getElementById('co-city-search');
   if (csi) csi.value = '';
   const csb = document.getElementById('co-city-box');
@@ -545,17 +567,10 @@ function openCheckout() {
 
   goStep(1, true);
 }
-
-/** Cierra el checkout */
 function closeCheckout() {
   document.getElementById('checkoutOverlay').classList.remove('active');
   document.body.style.overflow = 'auto';
 }
-
-/**
- * Rellena el panel de resumen del checkout.
- * El costo de envío se escala según la cantidad total de prendas.
- */
 function fillSummary() {
   const sub         = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const qty         = cart.reduce((s, i) => s + i.qty, 0);
@@ -597,11 +612,6 @@ function fillSummary() {
 /* ══════════════════════════════════════════════════════════════
    CHECKOUT — PASOS / VALIDACIÓN
 ══════════════════════════════════════════════════════════════ */
-
-/**
- * Navega al paso indicado del checkout.
- * Si `force = true` omite la validación (útil al abrir el checkout).
- */
 function goStep(step, force) {
   if (!force && step > currentStep && !validateStep(currentStep)) return;
   currentStep = step;
@@ -620,8 +630,6 @@ function goStep(step, force) {
 
   document.getElementById('checkoutModal')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
-
-/** Valida los campos del paso actual. Devuelve true si todo está OK. */
 function validateStep(step) {
   let ok = true;
 
@@ -689,7 +697,6 @@ function validateStep(step) {
 
 /* ══════════════════════════════════════════════════════════════
    SELECCIÓN DE MÉTODO DE PAGO
-   ► PAYMENT_PHONE se usa en los tres métodos de transferencia
 ══════════════════════════════════════════════════════════════ */
 function selectPay(label, method) {
   selectedPayMethod = method;
@@ -748,13 +755,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (file) procesarComprobante(file);
   });
 });
-
-/** Maneja el evento `change` del input file del comprobante */
 function handleComprobanteInput(input) {
   if (input.files[0]) procesarComprobante(input.files[0]);
 }
-
-/** Valida y almacena el archivo del comprobante */
 function procesarComprobante(file) {
   const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf'];
   if (!allowed.includes(file.type) && !file.name.match(/\.(jpg|jpeg|png|webp|heic|pdf)$/i)) {
@@ -769,8 +772,6 @@ function procesarComprobante(file) {
   uploadedFile = file;
   mostrarPreviewComprobante(file);
 }
-
-/** Muestra la previsualización del comprobante seleccionado */
 function mostrarPreviewComprobante(file) {
   const dz      = document.getElementById('co-drop-zone');
   const preview = document.getElementById('co-preview-wrap');
@@ -805,11 +806,7 @@ function mostrarPreviewComprobante(file) {
   dz.style.display      = 'none';
   preview.style.display = 'flex';
 }
-
-/** Quita el comprobante seleccionado y resetea el uploader */
 function quitarComprobante() { resetUploader(); }
-
-/** Resetea completamente el estado del uploader */
 function resetUploader() {
   uploadedFile = null;
   uploadedURL  = '';
@@ -821,14 +818,10 @@ function resetUploader() {
   if (preview) preview.style.display = 'none';
   setErrComprobante('');
 }
-
-/** Muestra u oculta el mensaje de error del comprobante */
 function setErrComprobante(msg) {
   const e = document.getElementById('err-comprobante');
   if (e) e.textContent = msg;
 }
-
-/** Formatea bytes a KB o MB legibles */
 function formatSize(bytes) {
   if (bytes < 1024)          return bytes + ' B';
   if (bytes < 1024 * 1024)   return (bytes / 1024).toFixed(1) + ' KB';
@@ -838,15 +831,11 @@ function formatSize(bytes) {
 /* ══════════════════════════════════════════════════════════════
    SELECTOR DE CIUDADES
 ══════════════════════════════════════════════════════════════ */
-
-/** Abre el dropdown del selector de ciudades */
 function openCityDropdown() {
   const dd = document.getElementById('co-city-dropdown');
   if (dd) dd.style.display = 'block';
   filterCities(document.getElementById('co-city-search')?.value || '');
 }
-
-/** Filtra las ciudades según el término de búsqueda */
 function filterCities(term) {
   const dd   = document.getElementById('co-city-dropdown');
   const list = document.getElementById('co-city-list');
@@ -881,8 +870,6 @@ function filterCities(term) {
     }).join('')}
   `).join('');
 }
-
-/** Selecciona una ciudad del dropdown y actualiza la UI */
 function selectCity(city) {
   selectedCity = city;
   const csi = document.getElementById('co-city-search');
@@ -916,8 +903,6 @@ function selectCity(city) {
 
   fillSummary();
 }
-
-/** Limpia la ciudad seleccionada */
 function clearCity() {
   selectedCity = null;
   const csi = document.getElementById('co-city-search');
@@ -928,29 +913,39 @@ function clearCity() {
   if (box) box.style.display = 'none';
   fillSummary();
 }
-
-// Cerrar dropdown de ciudades al clicar fuera
 document.addEventListener('click', function(e) {
   const wrap = document.getElementById('co-city-wrap');
   const dd   = document.getElementById('co-city-dropdown');
   if (wrap && dd && !wrap.contains(e.target)) dd.style.display = 'none';
+
+  const pageLink = e.target.closest('a[href]');
+  if (!pageLink) return;
+
+  const href = pageLink.getAttribute('href');
+  if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+  if (pageLink.target === '_blank') return;
+
+  const isExternal = /^(https?:)?\/\//i.test(href) && !href.startsWith(window.location.origin);
+  if (isExternal) return;
+
+  const samePage = pageLink.pathname === window.location.pathname && pageLink.search === window.location.search;
+  if (samePage) return;
+
+  e.preventDefault();
+  showPageLoader();
+  setTimeout(() => {
+    window.location.href = pageLink.href;
+  }, 420);
 });
 
 /* ══════════════════════════════════════════════════════════════
    CONFIRMAR PEDIDO
-   1. Valida el paso 3
-   2. Verifica stock en Supabase en tiempo real
-   3. Sube comprobante a Storage
-   4. Descuenta stock
-   5. Guarda pedido en orders
-   6. Muestra pantalla de éxito
 ══════════════════════════════════════════════════════════════ */
 async function confirmOrder() {
   if (!validateStep(3)) return;
 
   showOrderLoading('Verificando disponibilidad...');
 
-  // ── 1. Verificar stock actual en Supabase ──
   const { data: stockData, error: stockErr } = await supabase
     .from('products').select('id, stock, name');
   if (stockErr) {
@@ -997,7 +992,6 @@ async function confirmOrder() {
   const productosJson    = JSON.stringify(cart.map(i => ({ id: i.productId, name: i.name, price: i.price, size: i.size, qty: i.qty })));
   const productosResumen = cart.map(i => `${i.name} T:${i.size} x${i.qty}`).join('\n');
 
-  // ── 2. Subir comprobante ──
   let comprobanteUrl = null;
   if (uploadedFile) {
     showOrderLoading('Subiendo comprobante...');
@@ -1021,13 +1015,11 @@ async function confirmOrder() {
     }
   }
 
-  // ── 3. Descontar stock ──
   showOrderLoading('Guardando tu pedido...');
   for (const item of cart) {
     await descontarStockSupabase(item.productId, item.qty);
   }
 
-  // ── 4. Guardar pedido en Supabase ──
   const { error: orderError } = await supabase.from('orders').insert({
     order_id:            order,
     cliente:             `${nombre} ${apellido}`,
@@ -1046,7 +1038,7 @@ async function confirmOrder() {
     comprobante_url:     comprobanteUrl,
     subtotal:            subtotal,
     costo_envio:         shipping,
-    shipping_items:      totalPrendas,   // ← nueva columna
+    shipping_items:      totalPrendas,
     total:               total,
     estado:              'pendiente',
     productos_json:      productosJson,
@@ -1061,7 +1053,6 @@ async function confirmOrder() {
     return;
   }
 
-  // ── 5. Sincronizar stock local y limpiar carrito ──
   await syncStockFromSupabase();
   const prodsCopy = cart.map(i => ({ ...i }));
   cart = [];
@@ -1069,7 +1060,6 @@ async function confirmOrder() {
   updateCart();
   resetUploader();
 
-  // ── 6. Pantalla de éxito ──
   mostrarPantallaExito({
     order, nombre, apellido, ciudadEnvio, barrio, direccion,
     days:    selectedCity?.days    || '1-2 días',
@@ -1081,11 +1071,6 @@ async function confirmOrder() {
 /* ══════════════════════════════════════════════════════════════
    PANTALLA DE ÉXITO
 ══════════════════════════════════════════════════════════════ */
-
-/**
- * Reemplaza el modal de checkout con la pantalla de confirmación.
- * Muestra resumen completo: productos, envío, método de pago.
- */
 function mostrarPantallaExito(data) {
   const modal = document.getElementById('checkoutModal');
   modal.innerHTML = `
@@ -1152,26 +1137,19 @@ function mostrarPantallaExito(data) {
 /* ══════════════════════════════════════════════════════════════
    UI — MENÚ, CURSOR, SCROLL
 ══════════════════════════════════════════════════════════════ */
-
-/** Abre / cierra el menú hamburguesa en móvil */
 function toggleMenu() {
   document.getElementById('hamburger').classList.toggle('open');
   document.getElementById('navLinks').classList.toggle('open');
   document.body.style.overflow =
     document.getElementById('navLinks').classList.contains('open') ? 'hidden' : 'auto';
 }
-
-/** Cierra el menú hamburguesa */
 function closeMenu() {
   document.getElementById('hamburger').classList.remove('open');
   document.getElementById('navLinks').classList.remove('open');
   document.body.style.overflow = 'auto';
 }
-
-/** Scroll suave al top de la página */
 function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
-// Cursor personalizado (solo en dispositivos con mouse)
 const cursor = document.querySelector('.custom-cursor');
 if (cursor) {
   document.addEventListener('mousemove', e => {
@@ -1184,7 +1162,6 @@ if (cursor) {
   });
 }
 
-// Header scrolled + scroll-top button + parallax
 window.addEventListener('scroll', () => {
   const h = document.querySelector('header');
   const s = document.querySelector('.scroll-top');
@@ -1194,7 +1171,6 @@ window.addEventListener('scroll', () => {
   if (p) p.style.transform = `translateY(${window.pageYOffset * 0.4}px)`;
 });
 
-// Smooth scroll para links de ancla
 document.querySelectorAll('a[href^="#"]').forEach(a => {
   a.addEventListener('click', e => {
     e.preventDefault();
@@ -1203,12 +1179,10 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
   });
 });
 
-// Esc cierra modales
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeProductModal(); closeCheckout(); }
 });
 
-// Clic fuera del modal lo cierra
 document.getElementById('productModal')?.addEventListener('click', function(e) {
   if (e.target === this) closeProductModal();
 });
@@ -1218,11 +1192,25 @@ document.getElementById('checkoutOverlay')?.addEventListener('click', function(e
 
 /* ══════════════════════════════════════════════════════════════
    INICIALIZAR
+   ► cargarProductosSegunPagina() reemplaza la llamada directa a
+     cargarProductosDesdeSupabase() para soportar las 3 páginas.
 ══════════════════════════════════════════════════════════════ */
+function showPageLoader() {
+  const loader = document.getElementById('pageLoader');
+  if (!loader) return;
+  loader.classList.add('active');
+}
+
+function hidePageLoader() {
+  const loader = document.getElementById('pageLoader');
+  if (!loader) return;
+  loader.classList.remove('active');
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
-  // Restaurar carrito desde localStorage ANTES de cargar productos
   loadCartLS();
-  await cargarProductosDesdeSupabase();
-  // Re-renderizar carrito con los productos ya cargados
+  showPageLoader();
+  setTimeout(() => hidePageLoader(), 900);
+  await cargarProductosSegunPagina();
   updateCart();
 });
