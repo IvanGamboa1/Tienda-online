@@ -95,8 +95,12 @@
         <i class="bi bi-list"></i>
       </button>
       <span class="admin-topbar-title" id="adminTopbarTitle">DASHBOARD</span>
+      <button class="admin-install-btn admin-install-topbar admin-install-mobile" type="button" data-pwa-install aria-label="Instalar app de administración" title="Instalar app de administración">
+        <i class="bi bi-download"></i>
+      </button>
       <span class="admin-topbar-badge" id="adminTopbarBadge"></span>
     </div>
+    <p class="admin-install-hint admin-install-mobile-hint" data-pwa-install-hint role="status" hidden></p>
 
     <!-- Topbar desktop (oculto en móvil) -->
     <div class="topbar">
@@ -104,7 +108,13 @@
         <h1 id="vtit">DASHBOARD</h1>
         <p id="vsub">Resumen general · K1KO Streetwear 2026</p>
       </div>
-      <div class="live"><div class="dot"></div> En vivo</div>
+      <div class="admin-topbar-actions">
+        <div class="live"><div class="dot"></div> En vivo</div>
+        <button class="admin-install-btn admin-install-topbar" type="button" data-pwa-install>
+          <i class="bi bi-download"></i> Instalar app de administración
+        </button>
+        <p class="admin-install-hint" data-pwa-install-hint role="status" hidden></p>
+      </div>
     </div>
 
     <!-- ══ OVERVIEW ══ -->
