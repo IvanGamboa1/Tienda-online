@@ -102,38 +102,6 @@ body {
   position:relative; z-index:1;
   display:flex; align-items:center; justify-content:center; gap:.6rem;
 }
-.topbar-actions { display:flex; align-items:center; gap:1rem; }
-.btn-admin-install {
-  display:flex; align-items:center; justify-content:center; gap:.45rem;
-  padding:.55rem .8rem; background:rgba(251,191,36,.08);
-  border:1px solid rgba(251,191,36,.35); color:var(--gold);
-  font-family:'Montserrat',sans-serif; font-size:.65rem; font-weight:800;
-  letter-spacing:1px; text-transform:uppercase; white-space:nowrap; cursor:pointer;
-  transition:background .2s, border-color .2s;
-}
-.btn-admin-install:hover { background:rgba(251,191,36,.15); border-color:var(--gold); }
-.admin-install-mobile { display:none; flex-shrink:0; width:34px; height:34px; padding:0; font-size:.9rem; }
-.admin-pwa-hint {
-  padding:.55rem 2rem; background:rgba(251,191,36,.06);
-  color:var(--gold); font-size:.72rem; line-height:1.5;
-}
-.admin-pwa-hint[hidden] { display:none; }
-.pwa-install-dialog {
-  width:min(28rem,calc(100vw - 2rem)); margin:auto; padding:1.5rem;
-  border:1px solid rgba(251,191,36,.4); border-radius:8px;
-  background:var(--panel); color:var(--text); box-shadow:0 16px 48px rgba(0,0,0,.6);
-  font-family:'Montserrat',sans-serif;
-}
-.pwa-install-dialog::backdrop { background:rgba(0,0,0,.72); }
-.pwa-install-dialog h2 { margin-bottom:1rem; color:var(--gold); font-size:1.15rem; }
-.pwa-install-dialog ol { padding-left:1.35rem; font-size:.9rem; line-height:1.6; }
-.pwa-install-dialog li + li { margin-top:.55rem; }
-.pwa-install-dialog p { margin-top:1rem; color:var(--sub); font-size:.78rem; line-height:1.5; }
-.pwa-install-dialog-close {
-  display:block; margin:1.25rem 0 0 auto; padding:.65rem 1rem;
-  border:0; border-radius:4px; background:var(--gold); color:#080808;
-  font:700 .8rem 'Montserrat',sans-serif; cursor:pointer;
-}
 .btn-login.spin .txt { opacity:0; }
 .btn-login.spin::after {
   content:''; position:absolute; inset:0; z-index:2;
@@ -830,8 +798,6 @@ body {
 
   /* Topbar móvil */
   .admin-topbar-mobile { display:flex; }
-  .admin-install-mobile { display:flex; }
-
   /* Topbar desktop se oculta */
   .topbar { display:none; }
 

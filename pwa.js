@@ -3,8 +3,39 @@ const installButtons = [...document.querySelectorAll('[data-pwa-install]')];
 const installHints = [...document.querySelectorAll('[data-pwa-install-hint]')];
 const isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent)
   || (window.navigator.platform === 'MacIntel' && window.navigator.maxTouchPoints > 1);
-const isInstalled = window.matchMedia('(display-mode: standalone)').matches
-  || window.navigator.standalone === true;
+const installStateKey = `k1ko:pwa-installed:${document.querySelector('link[rel="manifest"]')?.href || window.location.pathname}`;
+const standaloneMode = window.matchMedia('(display-mode: standalone)');
+
+function isRunningAsInstalledApp() {
+  return standaloneMode.matches || window.navigator.standalone === true;
+}
+
+function readInstalledState() {
+  try {
+    return window.localStorage.getItem(installStateKey) === 'true';
+  } catch (error) {
+    console.error('No se pudo leer el estado de instalación de K1KO:', error);
+    return false;
+  }
+}
+
+function saveInstalledState(installed) {
+  try {
+    if (installed) {
+      window.localStorage.setItem(installStateKey, 'true');
+    } else {
+      window.localStorage.removeItem(installStateKey);
+    }
+  } catch (error) {
+    console.error('No se pudo guardar el estado de instalación de K1KO:', error);
+  }
+}
+
+let appIsInstalled = isRunningAsInstalledApp() || readInstalledState();
+
+function updateInstallButtons() {
+  installButtons.forEach(button => { button.hidden = appIsInstalled; });
+}
 
 function showInstallHint(message) {
   installHints.forEach(hint => {
@@ -63,13 +94,16 @@ function showUnavailableMessage() {
   showInstallHint(message);
 }
 
-if (isInstalled) {
-  installButtons.forEach(button => { button.hidden = true; });
-}
+updateInstallButtons();
 
 window.addEventListener('beforeinstallprompt', event => {
   event.preventDefault();
   installPrompt = event;
+  if (!isRunningAsInstalledApp()) {
+    saveInstalledState(false);
+    appIsInstalled = false;
+    updateInstallButtons();
+  }
 });
 
 installButtons.forEach(button => button.addEventListener('click', async () => {
@@ -96,7 +130,9 @@ installButtons.forEach(button => button.addEventListener('click', async () => {
 }));
 
 window.addEventListener('appinstalled', () => {
-  installButtons.forEach(button => { button.hidden = true; });
+  saveInstalledState(true);
+  appIsInstalled = true;
+  updateInstallButtons();
   showInstallHint('K1KO quedó instalada en tu dispositivo.');
 });
 
