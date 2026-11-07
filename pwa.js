@@ -90,7 +90,7 @@ function showIosInstallGuide() {
 function showUnavailableMessage() {
   const userAgent = window.navigator.userAgent;
   const message = /android/i.test(userAgent)
-    ? 'Para instalar en Android, abre esta página directamente en Chrome (no dentro de WhatsApp o Instagram) y elige ⋮ > “Instalar aplicación” o “Añadir a pantalla de inicio”. Si no aparece, comprueba que la dirección use HTTPS y vuelve a cargar la página.'
+    ? 'Para instalar K1KO sin el distintivo de Chrome, abre esta página directamente en Chrome (no dentro de WhatsApp o Instagram) y elige ⋮ > “Instalar aplicación”. No uses “Añadir a pantalla de inicio”, porque crea un acceso directo con el distintivo de Chrome. Si no aparece “Instalar aplicación”, comprueba que la dirección use HTTPS y vuelve a cargar la página.'
     : /iphone|ipad|ipod/i.test(userAgent)
       ? 'Abre esta página en Safari y usa Compartir > “Añadir a pantalla de inicio”.'
       : 'La instalación directa no está disponible aquí. Abre K1KO en Chrome o Edge desde su menú de instalación y comprueba que la dirección use HTTPS.';
