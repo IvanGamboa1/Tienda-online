@@ -647,18 +647,46 @@ function abrirModalPedido(id) {
 
   let prods = [];
   try { prods = JSON.parse(pedido.productos_json || '[]'); } catch(e) {}
-  document.getElementById('m-productos').innerHTML = prods.map(p => `
-    <div class="m-prod-item">
-      <div class="m-prod-img">
-        <img src="img/${p.id}.jpeg" onerror="this.src=''" alt="${p.name}">
-        <span class="m-prod-qty">x${p.qty}</span>
-      </div>
-      <div class="m-prod-info">
-        <div class="m-prod-name">${p.name}</div>
-        <div class="m-prod-det">Talla: <strong>${p.size}</strong> · $${Number(p.price).toLocaleString('es-CO')} c/u</div>
-      </div>
-      <div class="m-prod-sub">$${(p.price * p.qty).toLocaleString('es-CO')}</div>
-    </div>`).join('') || '<p style="color:#666;font-size:.85rem">Sin detalle de productos</p>';
+  const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[character]);
+  const zoneNames = {
+    front: 'Frente',
+    back: 'Espalda',
+    leftSleeve: 'Manga izquierda',
+    rightSleeve: 'Manga derecha'
+  };
+  document.getElementById('m-productos').innerHTML = prods.map(p => {
+    const isCustom = Boolean(p.customDesign);
+    const safeImage = isCustom
+      ? (/^data:image\/jpeg;base64,/i.test(p.image || '') ? p.image : '')
+      : `img/${encodeURIComponent(p.id)}.jpeg`;
+    const customDetails = isCustom
+      ? `<div class="m-prod-custom">
+          <div>Color: <strong>${escapeHtml(p.customDesign.colorName || p.customDesign.color)}</strong></div>
+          ${(p.customDesign.designs || []).map(design => {
+            const designName = design.type === 'image' ? 'Imagen cargada' : escapeHtml(design.text || 'Diseño K1KO');
+            const fontDetails = design.type === 'text' && design.fontFamily
+              ? ` · Fuente: ${escapeHtml(design.fontFamily)}`
+              : '';
+            return `<div>${escapeHtml(zoneNames[design.zone] || design.zone)} · ${designName} · ${escapeHtml(design.sizeLabel || design.size)}${fontDetails}</div>`;
+          }).join('')}
+        </div>`
+      : '';
+    return `
+      <div class="m-prod-item">
+        <div class="m-prod-img">
+          <img src="${safeImage}" onerror="this.src=''" alt="${escapeHtml(p.name)}">
+          <span class="m-prod-qty">x${Number(p.qty) || 0}</span>
+        </div>
+        <div class="m-prod-info">
+          <div class="m-prod-name">${escapeHtml(p.name)}</div>
+          <div class="m-prod-det">Talla: <strong>${escapeHtml(p.size)}</strong> · $${Number(p.price).toLocaleString('es-CO')} c/u</div>
+          ${customDetails}
+        </div>
+        <div class="m-prod-sub">$${(Number(p.price) * Number(p.qty)).toLocaleString('es-CO')}</div>
+      </div>`;
+  }).join('') || '<p style="color:#666;font-size:.85rem">Sin detalle de productos</p>';
 
   document.getElementById('m-total').textContent = '$'+(Number(pedido.total)||0).toLocaleString('es-CO')+' COP';
 
@@ -873,7 +901,14 @@ function enviarMensajeWA(tipo) {
 
   let prods = [];
   try { prods = JSON.parse(p.productos_json || '[]'); } catch(e) {}
-  const listaProd = prods.map(x => `• ${x.name} · Talla ${x.size} · x${x.qty}`).join('\n');
+  const listaProd = prods.map(x => {
+    const designSummary = x.customDesign
+      ? ` · Camiseta ${x.customDesign.colorName || ''} · ${x.customDesign.designs.map(design =>
+        `${design.zone}: ${design.type === 'image' ? 'imagen' : design.text || 'diseño K1KO'} (${design.sizeLabel}${design.type === 'text' && design.fontFamily ? `, fuente ${design.fontFamily}` : ''})`
+      ).join(', ')}`
+      : '';
+    return `• ${x.name} · Talla ${x.size} · x${x.qty}${designSummary}`;
+  }).join('\n');
 
   let msg = '', nuevoEstado = null;
 

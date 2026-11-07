@@ -14,8 +14,18 @@
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600;700&family=Montserrat:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="designer.css">
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+        }
+      }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="script.js" defer></script>
+    <script type="module" src="designer.js"></script>
     <link rel="icon" type="image/jpeg" href="img/logo.jpeg">
 </head>
 <script defer src="/_vercel/insights/script.js"></script>
@@ -38,6 +48,7 @@
         <ul class="nav-links" id="navLinks">
             <li><a href="index.html" onclick="closeMenu()">Inicio</a></li>
             <li><a href="Coleccion.html" onclick="closeMenu()">Colección</a></li>
+            <li><a href="#disena" onclick="closeMenu()">Diseña tu camisa</a></li>
             <li><a href="Descuento.html" onclick="closeMenu()">Descuentos</a></li>
         </ul>
         <div class="nav-right">
@@ -60,6 +71,110 @@
         <p>Diseños Exclusivos · Edición Limitada 2026</p>
     </div>
     <div class="products-grid" id="productsGrid"></div>
+</section>
+
+<section class="shirt-designer-section" id="disena">
+    <div class="designer-heading">
+        <span class="designer-kicker">PERSONALIZA · CREA · VISTE</span>
+        <h1>DISEÑA TU CAMISA</h1>
+        <p>Gira la camiseta 3D, elige el color y crea tu diseño en cada lado.</p>
+    </div>
+    <div class="shirt-designer">
+        <div class="designer-stage">
+            <div class="designer-stage-top">
+                <span><i class="bi bi-arrows-move"></i> Gira la camiseta y arrastra tus diseños</span>
+                <span class="designer-view-label" id="designerViewLabel">VISTA FRONTAL</span>
+            </div>
+            <div class="shirt-canvas-wrap" id="shirtCanvasWrap">
+                <div class="shirt-loading" id="shirtLoading"><span></span>Preparando tu camiseta 3D...</div>
+            </div>
+            <div class="designer-stage-bottom">
+                <button type="button" class="designer-view-btn" data-view="front">Frente</button>
+                <button type="button" class="designer-view-btn" data-view="back">Espalda</button>
+                <button type="button" class="designer-view-btn" data-view="left">Lado izq.</button>
+                <button type="button" class="designer-view-btn" data-view="right">Lado der.</button>
+            </div>
+        </div>
+        <div class="designer-controls">
+            <section class="designer-control-block">
+                <div class="designer-control-title"><span>01</span> Color de la camiseta</div>
+                <div class="designer-colors">
+                    <button class="designer-color selected" type="button" data-color="#f2f0eb" aria-label="Blanco" title="Blanco"></button>
+                    <button class="designer-color" type="button" data-color="#171717" aria-label="Negro" title="Negro"></button>
+                    <button class="designer-color" type="button" data-color="#b51f2b" aria-label="Rojo" title="Rojo"></button>
+                </div>
+            </section>
+            <section class="designer-control-block">
+                <div class="designer-control-title"><span>02</span> ¿Dónde va el diseño?</div>
+                <div class="designer-zone-grid" id="designerZones">
+                    <button class="designer-zone selected" type="button" data-zone="front">Frente</button>
+                    <button class="designer-zone" type="button" data-zone="back">Espalda</button>
+                    <button class="designer-zone" type="button" data-zone="leftSleeve">Manga izquierda</button>
+                    <button class="designer-zone" type="button" data-zone="rightSleeve">Manga derecha</button>
+                </div>
+            </section>
+            <section class="designer-control-block">
+                <div class="designer-control-title"><span>03</span> Tu diseño</div>
+                <div class="designer-tool-tabs" role="tablist" aria-label="Herramienta de diseño">
+                    <button class="designer-tool selected" type="button" data-tool="text"><i class="bi bi-fonts"></i> Texto</button>
+                    <button class="designer-tool" type="button" data-tool="upload"><i class="bi bi-image"></i> Imagen</button>
+                    <button class="designer-tool" type="button" data-tool="sticker"><i class="bi bi-stars"></i> K1KO</button>
+                </div>
+                <div class="designer-tool-panel" id="designerTextPanel">
+                    <label class="designer-field-label" for="designerText">Escribe tu texto</label>
+                    <input id="designerText" type="text" maxlength="24" placeholder="Ej: TU FRASE">
+                    <label class="designer-field-label" for="designerFontFamily">Tipo de letra</label>
+                    <select id="designerFontFamily">
+                        <option value="Montserrat">Montserrat</option>
+                        <option value="Bebas Neue">Bebas Neue</option>
+                        <option value="Oswald">Oswald</option>
+                        <option value="Poppins">Poppins</option>
+                        <option value="Arial">Arial</option>
+                    </select>
+                    <label class="designer-field-label" for="designerTextColor">Color del texto</label>
+                    <input id="designerTextColor" class="designer-text-color" type="color" value="#fbbf24">
+                    <button class="designer-add-btn" type="button" id="designerAddText">Agregar texto</button>
+                </div>
+                <div class="designer-tool-panel" id="designerUploadPanel" hidden>
+                    <label class="designer-field-label" for="designerImage">Sube tu imagen (PNG, JPG o WEBP)</label>
+                    <input id="designerImage" type="file" accept="image/png,image/jpeg,image/webp">
+                    <p class="designer-help">Máximo 3 MB; el estampado se prepara hasta en 2K. Solo se usa para personalizar esta prenda.</p>
+                </div>
+                <div class="designer-tool-panel" id="designerStickerPanel" hidden>
+                    <p class="designer-field-label">Elige un diseño K1KO</p>
+                    <div class="designer-stickers">
+                        <button type="button" class="designer-sticker" data-sticker="K1KO">K1KO</button>
+                        <button type="button" class="designer-sticker" data-sticker="45">45</button>
+                        <button type="button" class="designer-sticker" data-sticker="✦">✦ K1KO ✦</button>
+                    </div>
+                </div>
+            </section>
+            <section class="designer-control-block designer-placement">
+                <div class="designer-control-title"><span>04</span> Tamaño y ubicación</div>
+                <label class="designer-field-label" for="designerSize">Tamaño de impresión</label>
+                <select id="designerSize">
+                    <option value="small">Pequeño · +$5.000</option>
+                    <option value="medium" selected>Mediano · +$10.000</option>
+                    <option value="large">Grande · +$20.000</option>
+                </select>
+                <label class="designer-field-label" for="designerPositionX">Ubicación horizontal</label>
+                <input id="designerPositionX" type="range" min="15" max="85" value="50">
+                <label class="designer-field-label" for="designerPositionY">Ubicación vertical</label>
+                <input id="designerPositionY" type="range" min="15" max="85" value="50">
+                <p class="designer-help">Arrastra la impresión o usa los controles: podrás ubicarla desde los hombros hasta el borde inferior, sin salir de la camiseta.</p>
+            </section>
+            <div class="designer-summary">
+                <div><span>Precio base</span><strong>$50.000</strong></div>
+                <div><span>Impresiones</span><strong id="designerPrintTotal">$0</strong></div>
+                <div class="designer-total"><span>Total de la camiseta</span><strong id="designerTotal">$50.000 COP</strong></div>
+            </div>
+            <div class="designer-layer-list" id="designerLayerList"></div>
+            <div class="designer-message" id="designerMessage" role="status"></div>
+            <button type="button" class="designer-cart-btn" id="designerAddToCart">
+                <i class="bi bi-bag-plus-fill"></i> AGREGAR AL CARRITO · $50.000
+            </button>
+        </div>
+    </div>
 </section>
 
 <a href="admin.html" class="btn-admin" title="Panel de administración">

@@ -325,6 +325,40 @@ function qtyInCart(pid) {
 function availableStock(pid) {
   return (products[pid]?.stock ?? 0) - qtyInCart(pid);
 }
+function addCustomShirtToCart(customDesign) {
+  const { price, color, colorName, size, designs, preview } = customDesign;
+  const zoneNames = {
+    front: 'Frente',
+    back: 'Espalda',
+    leftSleeve: 'Manga izquierda',
+    rightSleeve: 'Manga derecha'
+  };
+  const designSummary = designs.map(design =>
+    `${zoneNames[design.zone] || design.zone} ${design.sizeLabel.toLowerCase()}${design.type === 'text' && design.fontFamily ? ` · fuente ${design.fontFamily}` : ''}`
+  ).join(', ');
+
+  cart.push({
+    id: Date.now(),
+    productId: 'custom-shirt',
+    name: 'Camiseta personalizada',
+    price,
+    size,
+    qty: 1,
+    image: preview,
+    isCustom: true,
+    customDesign: {
+      basePrice: 50000,
+      color,
+      colorName,
+      garment: 'Camiseta manga corta',
+      designs,
+      summary: designSummary
+    }
+  });
+  saveCartLS();
+  updateCart();
+  toggleCart();
+}
 async function descontarStockSupabase(productId, cantidad) {
   const { data, error } = await supabase
     .from('products').select('stock').eq('id', productId).single();
@@ -460,7 +494,9 @@ function removeFromCart(id) {
 function cartChangeQty(id, delta) {
   const item = cart.find(i => i.id === id);
   if (!item) return;
-  const maxAllowed = Math.min(products[item.productId]?.stock ?? 0, availableStock(item.productId) + item.qty);
+  const maxAllowed = item.isCustom
+    ? 10
+    : Math.min(products[item.productId]?.stock ?? 0, availableStock(item.productId) + item.qty);
   const newQty = item.qty + delta;
   if (newQty < 1)          { removeFromCart(id); return; }
   if (newQty > maxAllowed) return;
@@ -482,14 +518,20 @@ function updateCart() {
   }
 
   items.innerHTML = cart.map(item => {
-    const maxA = Math.min(products[item.productId]?.stock ?? 0, availableStock(item.productId) + item.qty);
+    const maxA = item.isCustom
+      ? 10
+      : Math.min(products[item.productId]?.stock ?? 0, availableStock(item.productId) + item.qty);
     const atMax = item.qty >= maxA;
+    const customSummary = item.isCustom
+      ? `<div class="cart-custom-summary">${item.customDesign.designs.length} impresión${item.customDesign.designs.length === 1 ? '' : 'es'} · ${item.customDesign.summary}</div>`
+      : '';
     return `
     <div class="cart-item">
       <img src="${item.image}" alt="${item.name}" class="cart-item-image">
       <div class="cart-item-details">
         <div class="cart-item-name">${item.name}</div>
         <div class="cart-item-size">Talla: <strong>${item.size}</strong></div>
+        ${customSummary}
         <div class="cart-item-price">$${(item.price * item.qty).toLocaleString('es-CO')} COP</div>
         <div class="cart-qty-row">
           <button class="cqb" onclick="cartChangeQty(${item.id},-1)" ${item.qty <= 1 ? 'disabled' : ''}>−</button>
@@ -958,6 +1000,7 @@ async function confirmOrder() {
   stockData.forEach(p => { stockMap[p.id] = p; });
 
   for (const item of cart) {
+    if (item.isCustom) continue;
     const disponible = stockMap[item.productId]?.stock ?? 0;
     if (item.qty > disponible) {
       hideOrderLoading();
@@ -989,8 +1032,19 @@ async function confirmOrder() {
   const total      = subtotal + shipping;
   const order      = 'KK-' + Date.now().toString().slice(-6);
 
-  const productosJson    = JSON.stringify(cart.map(i => ({ id: i.productId, name: i.name, price: i.price, size: i.size, qty: i.qty })));
-  const productosResumen = cart.map(i => `${i.name} T:${i.size} x${i.qty}`).join('\n');
+  const productosJson = JSON.stringify(cart.map(i => ({
+    id: i.productId,
+    name: i.name,
+    price: i.price,
+    size: i.size,
+    qty: i.qty,
+    image: i.image || null,
+    customDesign: i.customDesign || null
+  })));
+  const productosResumen = cart.map(i => {
+    const details = i.isCustom && i.customDesign.summary ? ` (${i.customDesign.summary})` : '';
+    return `${i.name} T:${i.size} x${i.qty}${details}`;
+  }).join('\n');
 
   let comprobanteUrl = null;
   if (uploadedFile) {
@@ -1017,6 +1071,7 @@ async function confirmOrder() {
 
   showOrderLoading('Guardando tu pedido...');
   for (const item of cart) {
+    if (item.isCustom) continue;
     await descontarStockSupabase(item.productId, item.qty);
   }
 

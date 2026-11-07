@@ -1,7 +1,10 @@
-const CACHE_NAME = 'k1ko-app-v10';
+const CACHE_NAME = 'k1ko-app-v25';
 const APP_SHELL = [
   './index.html',
   './Coleccion.html',
+  './designer.css',
+  './designer.js',
+  './models/k1ko-shirt.glb',
   './Descuento.html',
   './admin.html',
   './admin.webmanifest',
