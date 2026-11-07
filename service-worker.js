@@ -1,4 +1,4 @@
-const CACHE_NAME = 'k1ko-app-v7';
+const CACHE_NAME = 'k1ko-app-v8';
 const APP_SHELL = [
   './index.html',
   './Coleccion.html',
@@ -8,11 +8,12 @@ const APP_SHELL = [
   './script.js',
   './admin.css',
   './admin.js',
-  './pwa.js?v=3',
+  './pwa.js?v=4',
   './manifest.webmanifest',
   './img/logo.jpeg',
   './img/pwa-icon-192.png',
-  './img/pwa-icon-512.png'
+  './img/pwa-icon-512.png',
+  './img/pwa-icon-maskable.png'
 ];
 const APP_PATHS = new Set(
   APP_SHELL.map(path => new URL(path, self.location).pathname)
