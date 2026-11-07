@@ -331,6 +331,17 @@ body {
   display:flex; align-items:center; justify-content:space-between;
   gap:1rem; margin-bottom:1.2rem; flex-wrap:wrap;
 }
+.pedidos-admin-actions { display:flex; align-items:center; gap:.5rem; }
+.pedido-admin-btn {
+  padding:.55rem .8rem; background:rgba(255,255,255,.04); border:1px solid var(--border);
+  color:var(--text); font-family:'Montserrat',sans-serif; font-size:.68rem;
+  font-weight:700; cursor:pointer; transition:all .2s;
+  display:inline-flex; align-items:center; justify-content:center; gap:.4rem;
+}
+.pedido-admin-btn:hover { border-color:rgba(251,191,36,.5); color:var(--gold); }
+.pedido-admin-btn:disabled { opacity:.55; cursor:wait; }
+.pedido-delete-btn { color:#f87171; border-color:rgba(248,113,113,.25); }
+.pedido-delete-btn:hover { color:#fecaca; border-color:rgba(248,113,113,.65); }
 .filtros-wrap { display:flex; gap:.5rem; flex-wrap:wrap; }
 .filtro-btn {
   padding:.4rem 1rem; background:rgba(255,255,255,.04); border:1px solid var(--border);
@@ -813,6 +824,7 @@ body {
 
   /* Toolbar pedidos: vertical */
   .pedidos-toolbar { flex-direction:column; align-items:stretch; gap:.7rem; }
+  .pedidos-admin-actions { flex-wrap:wrap; }
   .filtros-wrap { overflow-x:auto; padding-bottom:.3rem; flex-wrap:nowrap; }
   .filtro-btn   { white-space:nowrap; flex-shrink:0; }
   .busqueda-wrap { min-width:auto; width:100%; }

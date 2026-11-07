@@ -1,9 +1,10 @@
-const CACHE_NAME = 'k1ko-app-v8';
+const CACHE_NAME = 'k1ko-app-v10';
 const APP_SHELL = [
   './index.html',
   './Coleccion.html',
   './Descuento.html',
   './admin.html',
+  './admin.webmanifest',
   './style.css?v=3',
   './script.js',
   './admin.css',
@@ -36,6 +37,40 @@ self.addEventListener('activate', event => {
           .map(key => caches.delete(key))
       ))
       .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const adminUrl = new URL(event.notification.data?.url || './admin.html', self.location).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then(clients => {
+        const existingClient = clients.find(client => new URL(client.url).pathname === new URL(adminUrl).pathname);
+        if (existingClient) {
+          return existingClient.navigate(adminUrl).then(() => existingClient.focus());
+        }
+        return self.clients.openWindow(adminUrl);
+      })
+  );
+});
+
+self.addEventListener('push', event => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (error) {
+    console.error('No se pudo interpretar el contenido de la notificación push:', error);
+  }
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title || 'K1KO: nuevo pedido', {
+      body: payload.body || 'Hay un nuevo pedido en la tienda.',
+      icon: './img/pwa-icon-192.png',
+      badge: './img/pwa-icon-192.png',
+      tag: payload.tag || `k1ko-pedido-${Date.now()}`,
+      data: { url: payload.url || './admin.html' }
+    })
   );
 });
 

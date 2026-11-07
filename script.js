@@ -1062,6 +1062,7 @@ async function confirmOrder() {
 
   mostrarPantallaExito({
     order, nombre, apellido, ciudadEnvio, barrio, direccion,
+    celular,
     days:    selectedCity?.days    || '1-2 días',
     carrier: selectedCity?.carrier || 'Interrapidísimo',
     metPago, subtotal, shipping, total, prodsCopy
@@ -1073,13 +1074,29 @@ async function confirmOrder() {
 ══════════════════════════════════════════════════════════════ */
 function mostrarPantallaExito(data) {
   const modal = document.getElementById('checkoutModal');
+  const mensajeWhatsApp = [
+    'Hola K1KO, acabo de realizar un pedido y quiero confirmar los datos.',
+    '',
+    `*Pedido:* ${data.order}`,
+    `*Cliente:* ${data.nombre} ${data.apellido}`,
+    `*Celular:* ${data.celular}`,
+    '',
+    '*Productos:*',
+    ...data.prodsCopy.map(p => `• ${p.name} · Talla ${p.size} · x${p.qty}`),
+    '',
+    `*Total:* $${data.total.toLocaleString('es-CO')} COP`,
+    `*Pago:* ${data.metPago}`,
+    `*Dirección:* ${data.barrio} — ${data.direccion}, ${data.ciudadEnvio}`
+  ].join('\n');
+  const enlaceWhatsApp = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(mensajeWhatsApp)}`;
+
   modal.innerHTML = `
     <div class="co-success-wrap">
       <div class="co-suc-head">
         <div class="co-suc-check"><i class="bi bi-check-lg"></i></div>
         <div>
           <h2>¡Pedido Registrado!</h2>
-          <p>Tu pedido fue recibido. Te confirmaremos vía WhatsApp en breve.</p>
+          <p>Tu pedido fue recibido. Envíanos el resumen por WhatsApp para confirmar los datos.</p>
         </div>
       </div>
       <div class="co-suc-order">
@@ -1122,8 +1139,11 @@ function mostrarPantallaExito(data) {
           <div class="co-suc-wa">
             <i class="bi bi-whatsapp"></i>
             <div>
-              <strong>Confirmación por WhatsApp</strong>
-              <p>Te enviaremos la confirmación al número registrado en breve.</p>
+              <strong>Confirma tu pedido por WhatsApp</strong>
+              <p>Abre WhatsApp con el resumen listo y toca “Enviar” para avisar a K1KO.</p>
+              <a class="co-suc-wa-link" href="${enlaceWhatsApp}" target="_blank" rel="noopener noreferrer">
+                <i class="bi bi-whatsapp"></i> Enviar pedido a K1KO
+              </a>
             </div>
           </div>
         </div>

@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>K1KO — Admin Panel</title>
 <meta name="theme-color" content="#080808">
+<link rel="manifest" href="./admin.webmanifest">
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -151,6 +152,10 @@
     <!-- ══ PEDIDOS ══ -->
     <section class="vista" id="v-pedidos">
       <div class="pedidos-toolbar">
+        <div class="pedidos-admin-actions">
+          <button class="pedido-admin-btn" id="btnNotificaciones" type="button"><i class="bi bi-bell"></i> Activar notificaciones</button>
+          <button class="pedido-admin-btn pedido-delete-btn" id="btnVaciarPedidos" type="button"><i class="bi bi-trash3"></i> Vaciar pedidos</button>
+        </div>
         <div class="filtros-wrap">
           <button class="filtro-btn on" data-estado="todos">Todos</button>
           <button class="filtro-btn" data-estado="pendiente"><span class="filtro-dot dot-pendiente"></span>Pendientes</button>

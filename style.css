@@ -827,6 +827,13 @@ footer { padding: 5rem 5% 3rem; background: var(--primary-black); border-top: 1p
 .co-suc-wa i { color: #25D366; font-size: 1.2rem; flex-shrink: 0; }
 .co-suc-wa strong { display: block; color: #25D366; margin-bottom: 0.15rem; font-size: 0.82rem; }
 .co-suc-wa p { color: #777; line-height: 1.4; margin: 0; }
+.co-suc-wa-link {
+    display: inline-flex; align-items: center; gap: 0.45rem;
+    margin-top: 0.7rem; padding: 0.6rem 0.85rem;
+    background: #25D366; color: #08140b; font-weight: 800;
+    text-decoration: none; transition: background 0.2s;
+}
+.co-suc-wa-link:hover { background: #1ebe5d; }
 
 .co-suc-close {
     width: 100%; padding: 1rem; background: transparent;

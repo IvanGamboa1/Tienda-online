@@ -8,6 +8,7 @@ const sb = supabase.createClient(SB_URL, SB_KEY);
 const SL = {};
 let pedidosData = [];
 let pedidoSeleccionado = null;
+let canalPedidos = null;
 
 /* ═══════════════════════════════════════════════
    ARRANQUE
@@ -25,6 +26,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('btnPass').onclick = cambiarPass;
   document.getElementById('fotoInput')?.addEventListener('change', previewFoto);
   document.getElementById('btnAgregar')?.addEventListener('click', agregarProducto);
+  document.getElementById('btnNotificaciones')?.addEventListener('click', activarNotificaciones);
+  document.getElementById('btnVaciarPedidos')?.addEventListener('click', eliminarTodosLosPedidos);
+  actualizarBotonNotificaciones();
 
   // ── Navegación ──
   document.querySelectorAll('.nav-btn[data-v]').forEach(b => {
@@ -144,7 +148,8 @@ function abrirDash(user) {
   cargarStock();
   cargarPedidos();
 
-  sb.channel('new-orders')
+  if (canalPedidos) sb.removeChannel(canalPedidos);
+  canalPedidos = sb.channel('new-orders')
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
       notificarNuevoPedido(payload.new);
       cargarPedidos();
@@ -159,6 +164,10 @@ function abrirDash(user) {
    LOGOUT
 ═══════════════════════════════════════════════ */
 async function doLogout() {
+  if (canalPedidos) {
+    await sb.removeChannel(canalPedidos);
+    canalPedidos = null;
+  }
   await sb.auth.signOut();
   document.getElementById('dash').classList.remove('on');
   const ls = document.getElementById('loginScreen');
@@ -299,6 +308,129 @@ async function cargarPedidos() {
   pedidosData = data || [];
   actualizarStatsOverview(pedidosData);
   renderizarPedidos(pedidosData);
+}
+
+async function activarNotificaciones() {
+  if (!('Notification' in window)) {
+    toast('Este navegador no admite notificaciones web', 'fail');
+    return;
+  }
+
+  if (!window.isSecureContext) {
+    toast('Las notificaciones requieren HTTPS', 'fail');
+    return;
+  }
+
+  try {
+    const permiso = await Notification.requestPermission();
+    actualizarBotonNotificaciones();
+    if (permiso !== 'granted') {
+      toast('No se concedió permiso para las notificaciones', 'fail');
+      return;
+    }
+
+    const registration = await navigator.serviceWorker.ready;
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      const { data: keyData, error: keyError } = await sb.functions.invoke('register-push-subscription', {
+        body: { action: 'getPublicKey' }
+      });
+      if (keyError) throw keyError;
+      if (!keyData?.publicKey) throw new Error('Supabase no devolvió la clave pública de notificaciones.');
+
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: convertirClavePush(keyData.publicKey)
+      });
+    }
+
+    const { error: saveError } = await sb.functions.invoke('register-push-subscription', {
+      body: { action: 'saveSubscription', subscription: subscription.toJSON() }
+    });
+    if (saveError) throw saveError;
+
+    toast('Notificaciones push activadas en este dispositivo ✓', 'ok');
+  } catch (error) {
+    console.error('No se pudo solicitar permiso para notificaciones:', error);
+    toast(`No se pudieron activar las notificaciones: ${error.message || 'error de configuración'}`, 'fail');
+  }
+}
+
+function convertirClavePush(clave) {
+  const base64 = clave.replace(/-/g, '+').replace(/_/g, '/');
+  const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+  return Uint8Array.from(atob(padded), character => character.charCodeAt(0));
+}
+
+function actualizarBotonNotificaciones() {
+  const boton = document.getElementById('btnNotificaciones');
+  if (!boton) return;
+
+  if (!('Notification' in window)) {
+    boton.disabled = true;
+    boton.innerHTML = '<i class="bi bi-bell-slash"></i> Notificaciones no disponibles';
+    return;
+  }
+
+  if (Notification.permission === 'granted') {
+    boton.innerHTML = '<i class="bi bi-bell-fill"></i> Configurar push en este dispositivo';
+  } else if (Notification.permission === 'denied') {
+    boton.innerHTML = '<i class="bi bi-bell-slash"></i> Permiso bloqueado';
+  } else {
+    boton.innerHTML = '<i class="bi bi-bell"></i> Activar notificaciones';
+  }
+}
+
+async function eliminarTodosLosPedidos() {
+  const boton = document.getElementById('btnVaciarPedidos');
+  const { count, error: countError } = await sb
+    .from('orders')
+    .select('order_id', { count: 'exact', head: true })
+    .not('order_id', 'is', null);
+
+  if (countError) {
+    toast('No se pudieron consultar los pedidos: ' + countError.message, 'fail');
+    return;
+  }
+  if (!count) {
+    toast('No hay pedidos para eliminar', 'ok');
+    return;
+  }
+
+  const confirmado = window.confirm(
+    `Se eliminarán ${count} pedido${count === 1 ? '' : 's'} de Supabase y del panel. ` +
+    'Los productos y el inventario actual se conservarán. Esta acción no se puede deshacer.'
+  );
+  if (!confirmado) return;
+
+  const frase = window.prompt('Para confirmar, escribe exactamente: ELIMINAR PEDIDOS');
+  if (frase !== 'ELIMINAR PEDIDOS') {
+    toast('Eliminación cancelada; los pedidos siguen intactos', 'fail');
+    return;
+  }
+
+  boton.disabled = true;
+  try {
+    const { error } = await sb
+      .from('orders')
+      .delete()
+      .not('order_id', 'is', null);
+
+    if (error) {
+      toast('No se pudieron eliminar los pedidos: ' + error.message, 'fail');
+      return;
+    }
+
+    cerrarModalPedido();
+    await cargarPedidos();
+    toast(`${count} pedido${count === 1 ? '' : 's'} eliminado${count === 1 ? '' : 's'}; productos e inventario conservados ✓`, 'ok');
+  } catch (error) {
+    console.error('Error inesperado vaciando los pedidos:', error);
+    toast('Error inesperado al eliminar los pedidos', 'fail');
+    await cargarPedidos();
+  } finally {
+    boton.disabled = false;
+  }
 }
 
 function actualizarStatsOverview(data) {
@@ -784,6 +916,7 @@ function notificarNuevoPedido(pedido) {
   document.getElementById('tIco').className = 'bi bi-bag-check-fill';
   clearTimeout(window._tt);
   window._tt = setTimeout(() => t.classList.remove('on'), 6000);
+
 }
 
 /* ═══════════════════════════════════════════════
