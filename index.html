@@ -13,7 +13,7 @@
     <link rel="apple-touch-icon" href="img/pwa-icon-192.png">
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;600;700&family=Montserrat:wght@300;400;500;600;700;800&family=Poppins:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=3">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="script.js" defer></script>
     <link rel="icon" type="image/jpeg" href="img/logo.jpeg">
@@ -32,9 +32,9 @@
 <header>
     <nav>
         <span class="logo-text">K1KO</span>
-        <div class="hamburger" id="hamburger" onclick="toggleMenu()">
+        <button class="hamburger" id="hamburger" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="navLinks" onclick="toggleMenu()">
             <span></span><span></span><span></span>
-        </div>
+        </button>
         <ul class="nav-links" id="navLinks">
             <li><a href="index.html" onclick="closeMenu()">Inicio</a></li>
             <li><a href="Coleccion.html" onclick="closeMenu()">Colección</a></li>

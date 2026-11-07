@@ -1138,13 +1138,19 @@ function mostrarPantallaExito(data) {
    UI — MENÚ, CURSOR, SCROLL
 ══════════════════════════════════════════════════════════════ */
 function toggleMenu() {
-  document.getElementById('hamburger').classList.toggle('open');
-  document.getElementById('navLinks').classList.toggle('open');
-  document.body.style.overflow =
-    document.getElementById('navLinks').classList.contains('open') ? 'hidden' : 'auto';
+  const hamburger = document.getElementById('hamburger');
+  const navLinks = document.getElementById('navLinks');
+  const isOpen = navLinks.classList.toggle('open');
+  hamburger.classList.toggle('open', isOpen);
+  hamburger.setAttribute('aria-expanded', String(isOpen));
+  hamburger.setAttribute('aria-label', isOpen ? 'Cerrar menú' : 'Abrir menú');
+  document.body.style.overflow = isOpen ? 'hidden' : 'auto';
 }
 function closeMenu() {
-  document.getElementById('hamburger').classList.remove('open');
+  const hamburger = document.getElementById('hamburger');
+  hamburger.classList.remove('open');
+  hamburger.setAttribute('aria-expanded', 'false');
+  hamburger.setAttribute('aria-label', 'Abrir menú');
   document.getElementById('navLinks').classList.remove('open');
   document.body.style.overflow = 'auto';
 }
