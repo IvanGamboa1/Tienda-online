@@ -1,4 +1,4 @@
-const CACHE_NAME = 'k1ko-app-v3';
+const CACHE_NAME = 'k1ko-app-v4';
 const APP_SHELL = [
   './index.html',
   './Coleccion.html',
@@ -8,7 +8,7 @@ const APP_SHELL = [
   './script.js',
   './admin.css',
   './admin.js',
-  './pwa.js',
+  './pwa.js?v=2',
   './manifest.webmanifest',
   './img/logo.jpeg',
   './img/pwa-icon-192.png',
