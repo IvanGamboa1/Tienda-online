@@ -52,8 +52,16 @@
 .pos-scanbox.flash-ok  { border-color:var(--green); box-shadow:0 0 0 4px rgba(34,197,94,.2); }
 .pos-scanbox.flash-err { border-color:var(--red);   box-shadow:0 0 0 4px rgba(220,38,38,.25); }
 
-.pos-cam { background:var(--card); border:1px solid var(--border); padding:.8rem; margin-bottom:.8rem; text-align:center; }
-.pos-cam #posCamView { max-width:420px; margin:0 auto .6rem; }
+.pos-cam {
+  width:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:.6rem;
+  padding:.6rem; margin:.6rem 0 1rem; background:#0b0b0b; border:1px solid var(--border);
+}
+.pos-cam #posCamView {
+  width:100%; aspect-ratio:4 / 3; max-height:min(52vh, 440px);
+  overflow:hidden; background:#000; margin:0;
+}
+.pos-cam video { display:block; width:100%; height:100%; object-fit:cover; }
+.pos-cam #posCamStop { align-self:center; }
 
 .pos-msg { min-height:1.4rem; margin-bottom:.8rem; font-size:.82rem; font-weight:600; }
 .pos-msg.ok   { color:var(--green); }
@@ -168,6 +176,8 @@
   .pos-x { grid-row:1; grid-column:3; }
   .pos-methods { grid-template-columns:repeat(2,1fr); }
   .pos-scanbox input { font-size:1rem; }
+  .pos-cam { padding:.35rem; margin:.4rem 0 .8rem; }
+  .pos-cam #posCamView { max-height:min(48vh, 360px); }
 }
 
 .pos-notice a { color:var(--gold); font-weight:700; text-decoration:underline; }

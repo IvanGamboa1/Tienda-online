@@ -182,11 +182,12 @@ on conflict do nothing;</pre></li>
   }
 
   function setTab(t) {
+    if (t !== S.tab) stopCamera();
     S.tab = t;
     document.querySelectorAll('[data-pos-tab]').forEach((b) => b.classList.toggle('on', b.dataset.posTab === t));
     document.querySelectorAll('[data-pos-panel]').forEach((p) => { p.hidden = p.dataset.posPanel !== t; });
     $('posScanWrap').hidden = (t === 'etiquetas' || t === 'ventas');
-    if (t !== 'cobrar' && t !== 'pedido') stopCamera();
+    if (t === 'cobrar' || t === 'pedido') dockCamera(t);
     $('posNotice').hidden = true;
     refreshTab();
     focusScan();
@@ -573,7 +574,14 @@ on conflict do nothing;</pre></li>
      CÁMARA (opcional, si el navegador soporta BarcodeDetector)
   ═══════════════════════════════════════════════════════════ */
   let camStream = null, camTimer = null, lastSeen = { c: '', t: 0 };
+  function dockCamera(tab) {
+    const camera = $('posCam');
+    const items = $(tab === 'pedido' ? 'posOrderItems' : 'posItems');
+    if (camera && items) items.parentElement.insertBefore(camera, items);
+  }
+
   async function startCamera() {
+    if (camStream) return;
     if (!('BarcodeDetector' in window) || !navigator.mediaDevices) {
       msg('Tu navegador no puede leer códigos con la cámara. Usa Chrome en Android/PC o un lector USB/Bluetooth.', 'err'); return;
     }
@@ -583,6 +591,7 @@ on conflict do nothing;</pre></li>
       const v = document.createElement('video');
       v.setAttribute('playsinline', ''); v.muted = true; v.srcObject = camStream;
       $('posCamView').innerHTML = ''; $('posCamView').appendChild(v);
+      dockCamera(S.tab);
       $('posCam').hidden = false; await v.play();
       camTimer = setInterval(async () => {
         try {
