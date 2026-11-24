@@ -6,6 +6,9 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 const BASE_PRICE = 50000;
 const SIZE_PRICE = { small: 5000, medium: 10000, large: 20000 };
 const SIZE_LABEL = { small: 'Pequeño', medium: 'Mediano', large: 'Grande' };
+const SIZE_SCALE = { small: 19, medium: 32, large: 47 };
+const MIN_PRINT_SCALE = 15;
+const MAX_PRINT_SCALE = 75;
 const ZONE_LABEL = {
   front: 'Frente',
   back: 'Espalda',
@@ -32,6 +35,7 @@ let textureUpdateFrame = 0;
 let raycaster;
 let pointer;
 let activeDesignDrag = null;
+let defaultPrintScale = SIZE_SCALE.medium;
 
 const canvasWrap = document.getElementById('shirtCanvasWrap');
 const loading = document.getElementById('shirtLoading');
@@ -46,6 +50,12 @@ function formatPrice(value) {
   return `$${value.toLocaleString('es-CO')}`;
 }
 
+function priceSizeForScale(scale) {
+  if (scale <= 25) return 'small';
+  if (scale <= 40) return 'medium';
+  return 'large';
+}
+
 function updatePrice() {
   const prints = priceForDesigns() - BASE_PRICE;
   document.getElementById('designerPrintTotal').textContent = `${formatPrice(prints)} COP`;
@@ -55,22 +65,22 @@ function updatePrice() {
 }
 
 function zoneCanvasSize(zone) {
-  return 1024;
+  return designLayers.some(layer => layer.zone === zone) ? 2048 : 512;
 }
 
-function printScale(size, zone = null) {
-  const scale = size === 'small' ? .19 : size === 'medium' ? .32 : .47;
+function printScale(size, zone = null, customScale = null) {
+  const scale = Math.min(MAX_PRINT_SCALE, Math.max(MIN_PRINT_SCALE, customScale ?? SIZE_SCALE[size])) / 100;
   return zone === 'leftSleeve' || zone === 'rightSleeve' ? Math.min(.75, scale * 2) : scale;
 }
 
 function clampLayerPosition(layer) {
-  const margin = printScale(layer.size, layer.zone) * 50 + 2;
+  const margin = printScale(layer.size, layer.zone, layer.scale) * 50 + 2;
   layer.x = Math.max(margin, Math.min(100 - margin, layer.x));
   layer.y = Math.max(margin, Math.min(100 - margin, layer.y));
 }
 
-function syncPositionRange(size, zone = selectedZone) {
-  const margin = printScale(size, zone) * 50 + 2;
+function syncPositionRange(size, zone = selectedZone, customScale = defaultPrintScale) {
+  const margin = printScale(size, zone, customScale) * 50 + 2;
   const horizontal = document.getElementById('designerPositionX');
   horizontal.min = Math.ceil(margin);
   horizontal.max = Math.floor(100 - margin);
@@ -82,7 +92,7 @@ function syncPositionRange(size, zone = selectedZone) {
 function drawLayer(ctx, design, width, height) {
   const centerX = width * design.x / 100;
   const centerY = height * design.y / 100;
-  const scale = printScale(design.size, design.zone);
+  const scale = printScale(design.size, design.zone, design.scale);
   const maxWidth = width * scale;
   const maxHeight = height * scale;
 
@@ -110,7 +120,7 @@ function drawLayer(ctx, design, width, height) {
 function getZoneCanvas(zone) {
   const size = zoneCanvasSize(zone);
   let canvas = zoneCanvases[zone];
-  if (!canvas) {
+  if (!canvas || canvas.width !== size) {
     canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
@@ -122,6 +132,13 @@ function getZoneCanvas(zone) {
   return canvas;
 }
 
+function createZoneTexture(canvas) {
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  return texture;
+}
+
 function rebuildTextures(zoneToUpdate = null) {
   const zones = zoneToUpdate ? [zoneToUpdate] : Object.keys(previewTextures);
   zones.forEach(zone => dirtyTextureZones.add(zone));
@@ -131,9 +148,19 @@ function rebuildTextures(zoneToUpdate = null) {
     dirtyTextureZones.forEach(zone => {
       if (!previewTextures[zone]?.length) return;
       const canvas = getZoneCanvas(zone);
-      previewTextures[zone].forEach(texture => {
-        texture.image = canvas;
+      previewTextures[zone] = previewTextures[zone].map(texture => {
+        if (texture.image.width !== canvas.width) {
+          const replacement = createZoneTexture(canvas);
+          designPanels
+            .filter(panel => panel.userData.zone === zone && panel.material.map === texture)
+            .forEach(panel => {
+              panel.material.map = replacement;
+            });
+          texture.dispose();
+          return replacement;
+        }
         texture.needsUpdate = true;
+        return texture;
       });
     });
     dirtyTextureZones.clear();
@@ -141,11 +168,10 @@ function rebuildTextures(zoneToUpdate = null) {
   });
 }
 
-function createPanel(zone, width, height, position, rotationY = 0) {
+function createPanel(zone, width, height, position, rotationY = 0, targetMeshes = []) {
   let texture = previewTextures[zone]?.[0];
   if (!texture) {
-    texture = new THREE.CanvasTexture(getZoneCanvas(zone));
-    texture.colorSpace = THREE.SRGBColorSpace;
+    texture = createZoneTexture(getZoneCanvas(zone));
     previewTextures[zone] = [];
   }
   if (!previewTextures[zone].includes(texture)) previewTextures[zone].push(texture);
@@ -160,9 +186,102 @@ function createPanel(zone, width, height, position, rotationY = 0) {
     polygonOffset: true,
     polygonOffsetFactor: -2
   });
-  const panel = new THREE.Mesh(new THREE.PlaneGeometry(width, height), material);
-  panel.position.set(...position);
-  panel.rotation.y = rotationY;
+  const center = new THREE.Vector3(...position);
+  const rotation = new THREE.Euler(0, rotationY, 0);
+  const normal = new THREE.Vector3(0, 0, 1).applyEuler(rotation).normalize();
+  const surfaceRaycaster = new THREE.Raycaster();
+  surfaceRaycaster.far = 1.2;
+  surfaceRaycaster.set(center.clone().addScaledVector(normal, .5), normal.clone().negate());
+  const [centerHit] = surfaceRaycaster.intersectObjects(targetMeshes, false);
+  let geometry;
+
+  if (centerHit) {
+    const segments = 24;
+    const positions = [];
+    const uvs = [];
+    const validVertices = [];
+    const indices = [];
+    const surface = centerHit.object;
+
+    for (let row = 0; row <= segments; row += 1) {
+      const v = row / segments;
+      for (let column = 0; column <= segments; column += 1) {
+        const u = column / segments;
+        const projectedPoint = new THREE.Vector3(
+          (u - .5) * width,
+          (.5 - v) * height,
+          0
+        ).applyEuler(rotation).add(center);
+        surfaceRaycaster.set(
+          projectedPoint.clone().addScaledVector(normal, .5),
+          normal.clone().negate()
+        );
+        const [hit] = surfaceRaycaster.intersectObject(surface, false);
+        validVertices.push(Boolean(hit));
+        if (hit) {
+          const surfaceNormal = hit.face.normal.clone().transformDirection(surface.matrixWorld);
+          if (surfaceNormal.dot(normal) < 0) surfaceNormal.negate();
+          positions.push(...hit.point.clone().addScaledVector(surfaceNormal, .015).toArray());
+        } else {
+          positions.push(projectedPoint.x, projectedPoint.y, projectedPoint.z);
+        }
+        uvs.push(u, 1 - v);
+      }
+    }
+
+    const raycastValidVertices = [...validVertices];
+    for (let row = 1; row < segments; row += 1) {
+      for (let column = 1; column < segments; column += 1) {
+        const index = row * (segments + 1) + column;
+        if (validVertices[index]) continue;
+        const neighbors = [];
+        for (let rowOffset = -2; rowOffset <= 2; rowOffset += 1) {
+          for (let columnOffset = -2; columnOffset <= 2; columnOffset += 1) {
+            if (!rowOffset && !columnOffset) continue;
+            const neighbor = (row + rowOffset) * (segments + 1) + column + columnOffset;
+            if (raycastValidVertices[neighbor]) neighbors.push(neighbor);
+          }
+        }
+        if (neighbors.length < 6) continue;
+        for (let axis = 0; axis < 3; axis += 1) {
+          positions[index * 3 + axis] = neighbors.reduce((sum, neighbor) => sum + positions[neighbor * 3 + axis], 0) / neighbors.length;
+        }
+        validVertices[index] = true;
+      }
+    }
+
+    for (let row = 0; row < segments; row += 1) {
+      for (let column = 0; column < segments; column += 1) {
+        const topLeft = row * (segments + 1) + column;
+        const topRight = topLeft + 1;
+        const bottomLeft = topLeft + segments + 1;
+        const bottomRight = bottomLeft + 1;
+        if (validVertices[topLeft] && validVertices[bottomLeft] && validVertices[topRight]) {
+          indices.push(topLeft, bottomLeft, topRight);
+        }
+        if (validVertices[topRight] && validVertices[bottomLeft] && validVertices[bottomRight]) {
+          indices.push(topRight, bottomLeft, bottomRight);
+        }
+      }
+    }
+
+    if (indices.length) {
+      geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+      geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+      geometry.setIndex(indices);
+      geometry.computeVertexNormals();
+    }
+  }
+
+  const panel = new THREE.Mesh(
+    geometry || new THREE.PlaneGeometry(width, height),
+    material
+  );
+  if (!geometry) {
+    panel.position.copy(center);
+    panel.rotation.copy(rotation);
+  }
   panel.renderOrder = 2;
   panel.userData.zone = zone;
   designPanels.push(panel);
@@ -318,7 +437,7 @@ function findDesignAtPointer(event) {
     let nearestDistance = Infinity;
     layers.forEach(layer => {
       const distance = Math.hypot(x - layer.x, y - layer.y);
-      const sizeScale = printScale(layer.size, layer.zone);
+      const sizeScale = printScale(layer.size, layer.zone, layer.scale);
       const hitRadius = sizeScale * 50;
       if (distance <= hitRadius && distance < nearestDistance) {
         nearest = layer;
@@ -349,9 +468,12 @@ function setupDesignDragging() {
     };
     selectedLayerId = hit.layer.id;
     selectedZone = hit.layer.zone;
+    defaultPrintScale = hit.layer.scale;
     controls.enabled = false;
     document.getElementById('designerSize').value = hit.layer.size;
-    syncPositionRange(hit.layer.size);
+    syncPositionRange(hit.layer.size, hit.layer.zone, hit.layer.scale);
+    document.getElementById('designerArtworkScale').value = hit.layer.scale;
+    document.getElementById('designerArtworkScaleValue').textContent = `${hit.layer.scale}%`;
     canvas.classList.add('is-dragging-design');
     canvas.setPointerCapture(event.pointerId);
     document.getElementById('designerPositionX').value = hit.layer.x;
@@ -393,6 +515,46 @@ function setupDesignDragging() {
   window.addEventListener('pointercancel', finishDrag);
 }
 
+function createFallbackShirt() {
+  const fallbackGroup = new THREE.Group();
+  const fabricMaterial = new THREE.MeshLambertMaterial({
+    color: shirtColor,
+    side: THREE.DoubleSide
+  });
+  shirtMaterials.push(fabricMaterial);
+
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.9, 1.8, 6, 18), fabricMaterial);
+  body.rotation.z = Math.PI / 2;
+  body.scale.set(1.1, 1.2, 1.0);
+  body.position.y = 0.05;
+  fallbackGroup.add(body);
+
+  const leftSleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.28, 0.95, 18), fabricMaterial);
+  leftSleeve.rotation.z = Math.PI / 2.6;
+  leftSleeve.rotation.y = 0.2;
+  leftSleeve.position.set(-1.05, 0.4, -0.55);
+  fallbackGroup.add(leftSleeve);
+
+  const rightSleeve = leftSleeve.clone();
+  rightSleeve.position.z *= -1;
+  rightSleeve.rotation.y *= -1;
+  fallbackGroup.add(rightSleeve);
+
+  const collar = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.12, 12, 24, Math.PI), fabricMaterial);
+  collar.rotation.z = Math.PI / 2;
+  collar.position.set(0, 0.95, 0);
+  fallbackGroup.add(collar);
+
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.22, 20), fabricMaterial);
+  neck.rotation.x = Math.PI / 2;
+  neck.position.set(0, 1.08, 0);
+  fallbackGroup.add(neck);
+
+  fallbackGroup.scale.setScalar(1.45);
+  scene.add(fallbackGroup);
+  return fallbackGroup;
+}
+
 function loadShirtModel(frontGroup, backGroup) {
   const dracoLoader = new DRACOLoader();
   dracoLoader.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/libs/draco/');
@@ -410,8 +572,10 @@ function loadShirtModel(frontGroup, backGroup) {
     const shirtCenterY = -(bounds.min.y + bounds.max.y) / 2;
     shirt.position.y += shirtCenterY;
 
+    const shirtMeshes = [];
     shirt.traverse(object => {
       if (!object.isMesh) return;
+      shirtMeshes.push(object);
       const materials = Array.isArray(object.material) ? object.material : [object.material];
       smoothFrontDetails(object.geometry);
       const shirtMaterialsForMesh = materials.map(() => {
@@ -427,16 +591,17 @@ function loadShirtModel(frontGroup, backGroup) {
       object.receiveShadow = true;
     });
     scene.add(shirt);
+    shirt.updateMatrixWorld(true);
     const width = size.z;
     const height = size.y;
     const frontX = bounds.max.x + .008;
     const backX = bounds.min.x - .008;
-    frontGroup.add(createPanel('front', width * .72, height * .92, [frontX, shirtCenterY, 0], Math.PI / 2));
+    frontGroup.add(createPanel('front', width * .72, height * .92, [frontX, shirtCenterY, 0], Math.PI / 2, shirtMeshes));
     const sleeveY = shirtCenterY + height * .25;
     const sleeveSideZ = width * .49 + .008;
-    frontGroup.add(createPanel('leftSleeve', width * .18, height * .16, [-.05, sleeveY, -sleeveSideZ]));
-    frontGroup.add(createPanel('rightSleeve', width * .18, height * .16, [-.05, sleeveY, sleeveSideZ]));
-    backGroup.add(createPanel('back', width * .72, height * .92, [backX, shirtCenterY, 0], -Math.PI / 2));
+    frontGroup.add(createPanel('leftSleeve', width * .18, height * .16, [-.05, sleeveY, -sleeveSideZ], Math.PI, shirtMeshes));
+    frontGroup.add(createPanel('rightSleeve', width * .18, height * .16, [-.05, sleeveY, sleeveSideZ], 0, shirtMeshes));
+    backGroup.add(createPanel('back', width * .72, height * .92, [backX, shirtCenterY, 0], -Math.PI / 2, shirtMeshes));
     setView('front');
     loading.hidden = true;
     resizeRenderer();
@@ -444,8 +609,30 @@ function loadShirtModel(frontGroup, backGroup) {
     dracoLoader.dispose();
   }, undefined, error => {
     console.error('No se pudo cargar el modelo de camiseta:', error);
-    loading.textContent = 'No se pudo cargar la camiseta 3D. Actualiza la página e inténtalo de nuevo.';
-    document.getElementById('designerAddToCart').disabled = true;
+    const fallbackShirt = createFallbackShirt();
+    const fallbackBounds = new THREE.Box3().setFromObject(fallbackShirt);
+    const fallbackSize = fallbackBounds.getSize(new THREE.Vector3());
+    const fallbackCenterY = -(fallbackBounds.min.y + fallbackBounds.max.y) / 2;
+    fallbackShirt.position.y += fallbackCenterY;
+    fallbackShirt.rotation.y = 0;
+    fallbackShirt.updateMatrixWorld(true);
+    const fallbackMeshes = [];
+    fallbackShirt.traverse(object => {
+      if (object.isMesh) fallbackMeshes.push(object);
+    });
+    loading.hidden = true;
+    const width = fallbackSize.z;
+    const height = fallbackSize.y;
+    frontGroup.add(createPanel('front', width * .72, height * .92, [fallbackBounds.max.x + .008, fallbackCenterY, 0], Math.PI / 2, fallbackMeshes));
+    const sleeveY = fallbackCenterY + height * .25;
+    const sleeveSideZ = width * .49 + .008;
+    frontGroup.add(createPanel('leftSleeve', width * .18, height * .16, [-.05, sleeveY, -sleeveSideZ], Math.PI, fallbackMeshes));
+    frontGroup.add(createPanel('rightSleeve', width * .18, height * .16, [-.05, sleeveY, sleeveSideZ], 0, fallbackMeshes));
+    backGroup.add(createPanel('back', width * .72, height * .92, [fallbackBounds.min.x - .008, fallbackCenterY, 0], -Math.PI / 2, fallbackMeshes));
+    setView('front');
+    resizeRenderer();
+    renderer.render(scene, camera);
+    document.getElementById('designerAddToCart').disabled = false;
     dracoLoader.dispose();
   });
 }
@@ -486,12 +673,15 @@ function renderLayerList() {
     selectButton.type = 'button';
     selectButton.className = `designer-layer-select${layer.id === selectedLayerId ? ' selected' : ''}`;
     const fontLabel = layer.type === 'text' && layer.fontFamily ? ` · ${layer.fontFamily}` : '';
-    selectButton.textContent = `${ZONE_LABEL[layer.zone]} · ${layer.type === 'image' ? 'Imagen' : layer.text} · ${SIZE_LABEL[layer.size]}${fontLabel}`;
+    selectButton.textContent = `${ZONE_LABEL[layer.zone]} · ${layer.type === 'image' ? 'Imagen' : layer.text} · ${Math.round(layer.scale)}% · ${SIZE_LABEL[layer.size]}${fontLabel}`;
     selectButton.addEventListener('click', () => {
       selectedLayerId = layer.id;
       selectedZone = layer.zone;
+      defaultPrintScale = layer.scale;
       document.getElementById('designerSize').value = layer.size;
-      syncPositionRange(layer.size);
+      document.getElementById('designerArtworkScale').value = layer.scale;
+      document.getElementById('designerArtworkScaleValue').textContent = `${layer.scale}%`;
+      syncPositionRange(layer.size, layer.zone, layer.scale);
       document.getElementById('designerPositionX').value = layer.x;
       document.getElementById('designerPositionY').value = layer.y;
       if (layer.type === 'text') document.getElementById('designerFontFamily').value = layer.fontFamily || 'Montserrat';
@@ -522,20 +712,22 @@ function addLayer(type, values) {
     return;
   }
   message.textContent = '';
-  const size = document.getElementById('designerSize').value;
+  const scale = defaultPrintScale;
+  const size = priceSizeForScale(scale);
   const layer = {
     id: ++layerCounter,
     type,
     zone: selectedZone,
     size,
     sizeLabel: SIZE_LABEL[size],
+    scale,
     x: Number(document.getElementById('designerPositionX').value),
     y: Number(document.getElementById('designerPositionY').value),
     fontFamily: type === 'text' ? (values.fontFamily || document.getElementById('designerFontFamily').value) : null,
     ...values
   };
   clampLayerPosition(layer);
-  syncPositionRange(layer.size);
+  syncPositionRange(layer.size, layer.zone, layer.scale);
   document.getElementById('designerPositionX').value = layer.x;
   document.getElementById('designerPositionY').value = layer.y;
   designLayers.push(layer);
@@ -615,8 +807,8 @@ function addToCart() {
     return;
   }
   const size = document.querySelector('.modal-size-btn.selected')?.textContent || 'M';
-  const designs = designLayers.map(({ id, type, zone, size: printSize, sizeLabel, x, y, text, color, image, fontFamily }) => ({
-    id, type, zone, size: printSize, sizeLabel, x, y, text, color, image, fontFamily
+  const designs = designLayers.map(({ id, type, zone, size: printSize, sizeLabel, scale, x, y, text, color, image, fontFamily }) => ({
+    id, type, zone, size: printSize, sizeLabel, scale, x, y, text, color, image, fontFamily
   }));
   window.addCustomShirtToCart({
     price: priceForDesigns(),
@@ -631,7 +823,9 @@ document.querySelectorAll('.designer-zone').forEach(button => {
   button.addEventListener('click', () => {
     selectedZone = button.dataset.zone;
     selectedLayerId = null;
-    syncPositionRange(document.getElementById('designerSize').value);
+    syncPositionRange(document.getElementById('designerSize').value, selectedZone, defaultPrintScale);
+    document.getElementById('designerArtworkScale').value = defaultPrintScale;
+    document.getElementById('designerArtworkScaleValue').textContent = `${defaultPrintScale}%`;
     document.querySelectorAll('.designer-zone').forEach(zone => zone.classList.toggle('selected', zone === button));
     renderLayerList();
   });
@@ -695,15 +889,40 @@ document.getElementById('designerPositionX').addEventListener('input', updateSel
 document.getElementById('designerPositionY').addEventListener('input', updateSelectedPosition);
 document.getElementById('designerSize').addEventListener('change', event => {
   const layer = designLayers.find(item => item.id === selectedLayerId);
-  syncPositionRange(event.target.value);
-  if (!layer) return;
-  layer.size = event.target.value;
-  layer.sizeLabel = SIZE_LABEL[layer.size];
-  clampLayerPosition(layer);
-  document.getElementById('designerPositionX').value = layer.x;
-  document.getElementById('designerPositionY').value = layer.y;
-  rebuildTextures(layer.zone);
-  renderLayerList();
+  defaultPrintScale = SIZE_SCALE[event.target.value];
+  document.getElementById('designerArtworkScale').value = defaultPrintScale;
+  document.getElementById('designerArtworkScaleValue').textContent = `${defaultPrintScale}%`;
+  if (layer) {
+    layer.scale = defaultPrintScale;
+    layer.size = event.target.value;
+    layer.sizeLabel = SIZE_LABEL[layer.size];
+    clampLayerPosition(layer);
+    document.getElementById('designerPositionX').value = layer.x;
+    document.getElementById('designerPositionY').value = layer.y;
+    rebuildTextures(layer.zone);
+    renderLayerList();
+  }
+  syncPositionRange(event.target.value, layer?.zone || selectedZone, defaultPrintScale);
+  updatePrice();
+});
+document.getElementById('designerArtworkScale').addEventListener('input', event => {
+  const scale = Number(event.target.value);
+  const layer = designLayers.find(item => item.id === selectedLayerId);
+  defaultPrintScale = scale;
+  document.getElementById('designerArtworkScaleValue').textContent = `${scale}%`;
+  const size = priceSizeForScale(scale);
+  document.getElementById('designerSize').value = size;
+  if (layer) {
+    layer.scale = scale;
+    layer.size = size;
+    layer.sizeLabel = SIZE_LABEL[size];
+    clampLayerPosition(layer);
+    document.getElementById('designerPositionX').value = layer.x;
+    document.getElementById('designerPositionY').value = layer.y;
+    rebuildTextures(layer.zone);
+    renderLayerList();
+  }
+  syncPositionRange(size, layer?.zone || selectedZone, scale);
   updatePrice();
 });
 document.getElementById('designerAddToCart').addEventListener('click', addToCart);
@@ -714,7 +933,7 @@ document.querySelectorAll('.modal-size-btn').forEach(button => {
 });
 
 try {
-  syncPositionRange(document.getElementById('designerSize').value);
+  syncPositionRange(document.getElementById('designerSize').value, selectedZone, defaultPrintScale);
   initScene();
   updatePrice();
 } catch (error) {

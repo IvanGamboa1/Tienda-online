@@ -138,7 +138,7 @@
                 <div class="designer-tool-panel" id="designerUploadPanel" hidden>
                     <label class="designer-field-label" for="designerImage">Sube tu imagen (PNG, JPG o WEBP)</label>
                     <input id="designerImage" type="file" accept="image/png,image/jpeg,image/webp">
-                    <p class="designer-help">Máximo 3 MB; el estampado se prepara hasta en 2K. Solo se usa para personalizar esta prenda.</p>
+                    <p class="designer-help">Máximo 3 MB. El preview 3D usa hasta 2K por zona y conserva la imagen original mientras editas; evita ampliar imágenes pequeñas.</p>
                 </div>
                 <div class="designer-tool-panel" id="designerStickerPanel" hidden>
                     <p class="designer-field-label">Elige un diseño K1KO</p>
@@ -151,7 +151,9 @@
             </section>
             <section class="designer-control-block designer-placement">
                 <div class="designer-control-title"><span>04</span> Tamaño y ubicación</div>
-                <label class="designer-field-label" for="designerSize">Tamaño de impresión</label>
+                <label class="designer-field-label" for="designerArtworkScale">Tamaño del estampado <output id="designerArtworkScaleValue">32%</output></label>
+                <input id="designerArtworkScale" type="range" min="15" max="75" value="32">
+                <label class="designer-field-label" for="designerSize">Precio según tamaño</label>
                 <select id="designerSize">
                     <option value="small">Pequeño · +$5.000</option>
                     <option value="medium" selected>Mediano · +$10.000</option>
@@ -161,7 +163,7 @@
                 <input id="designerPositionX" type="range" min="15" max="85" value="50">
                 <label class="designer-field-label" for="designerPositionY">Ubicación vertical</label>
                 <input id="designerPositionY" type="range" min="15" max="85" value="50">
-                <p class="designer-help">Arrastra la impresión o usa los controles: podrás ubicarla desde los hombros hasta el borde inferior, sin salir de la camiseta.</p>
+                <p class="designer-help">Ajusta el tamaño libremente y mueve el estampado sobre la tela. El precio cambia según el tamaño de impresión.</p>
             </section>
             <div class="designer-summary">
                 <div><span>Precio base</span><strong>$50.000</strong></div>
