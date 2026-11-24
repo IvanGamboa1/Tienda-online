@@ -147,6 +147,7 @@ function abrirDash(user) {
 
   cargarStock();
   cargarPedidos();
+  if (window.K1POS) window.K1POS.refreshIncome();
 
   if (canalPedidos) sb.removeChannel(canalPedidos);
   canalPedidos = sb.channel('new-orders')
@@ -185,6 +186,7 @@ const VISTAS = {
   stock:     ['STOCK',         'Actualiza inventario · Cambios en tiempo real'],
   productos: ['PRODUCTOS',     'Agrega o elimina productos del catálogo'],
   pedidos:   ['PEDIDOS',       'Gestión y confirmación de pedidos'],
+  pos:       ['ESCÁNER / CAJA', 'Escanea · cobra · confirma pedidos · imprime recibos'],
   config:    ['CONFIGURACIÓN', 'Ajustes de tienda y cuenta admin'],
 };
 
@@ -206,6 +208,8 @@ function irVista(key, btn) {
 
   if (key === 'productos') cargarProductos();
   if (key === 'pedidos')   cargarPedidos();
+  if (key === 'pos' && window.K1POS) window.K1POS.init();
+  if (key !== 'pos' && window.K1POS) window.K1POS.stop();
 }
 
 /* ═══════════════════════════════════════════════
@@ -829,6 +833,10 @@ function renderBotonesAccion(estado) {
     zona.innerHTML = `
       <button class="m-btn m-btn-wa" onclick="enviarMensajeWA('cancelado')"><i class="bi bi-whatsapp"></i> Notificar cancelación</button>
       <button class="m-btn m-btn-confirm" onclick="cambiarEstadoPedido('pendiente')"><i class="bi bi-arrow-counterclockwise"></i> Reactivar pedido</button>`;
+  }
+  if (window.K1POS && pedidoSeleccionado) {
+    zona.insertAdjacentHTML('beforeend',
+      `<button class="m-btn m-btn-wa" style="background:#1d1d1d;color:#fbbf24;border:1px solid #fbbf2455" onclick="window.K1POS.printOrderReceipt(pedidoSeleccionado)"><i class="bi bi-printer"></i> Imprimir recibo</button>`);
   }
 }
 

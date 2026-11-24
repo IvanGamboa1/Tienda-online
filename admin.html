@@ -11,6 +11,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <link rel="icon" type="image/jpeg" href="img/logo.jpeg">
 <link rel="stylesheet" href="admin.css">
+<link rel="stylesheet" href="pos.css?v=2">
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 </head>
 <script defer src="/_vercel/insights/script.js"></script>
 <body>
@@ -71,6 +73,7 @@
         <i class="bi bi-receipt"></i> Pedidos
         <span class="badge-nav" id="badge-pedidos" style="display:none;">0</span>
       </button>
+      <button class="nav-btn" data-v="pos"><i class="bi bi-upc-scan"></i> Escáner / Caja</button>
       <div class="nav-lbl">Config</div>
       <button class="nav-btn" data-v="config"><i class="bi bi-gear-fill"></i> Configuración</button>
     </nav>
@@ -124,6 +127,11 @@
         <div class="st e"><i class="bi bi-box-seam st-bg"></i><div class="st-l">Stock total</div><div class="st-v" id="sv-stk">—</div><div class="st-n">Unidades disponibles</div></div>
         <div class="st r"><i class="bi bi-bag-check st-bg"></i><div class="st-l">Pedidos</div><div class="st-v" id="sv-ped">—</div><div class="st-n">Totales registrados</div></div>
         <div class="st b"><i class="bi bi-grid st-bg"></i><div class="st-l">Productos</div><div class="st-v">2</div><div class="st-n">En catálogo activo</div></div>
+      </div>
+      <div class="stats stats-3" id="posIngresos">
+        <div class="st e"><i class="bi bi-graph-up-arrow st-bg"></i><div class="st-l">Ingresos de hoy</div><div class="st-v" id="ing-hoy">—</div><div class="st-n" id="ing-hoy-n">Online + mostrador</div></div>
+        <div class="st g"><i class="bi bi-calendar3 st-bg"></i><div class="st-l">Ingresos del mes</div><div class="st-v" id="ing-mes">—</div><div class="st-n" id="ing-mes-n">Online + mostrador</div></div>
+        <div class="st b"><i class="bi bi-shop st-bg"></i><div class="st-l">Ventas en mostrador (mes)</div><div class="st-v" id="ing-mostrador">—</div><div class="st-n" id="ing-mostrador-n">Hechas con el escáner</div></div>
       </div>
       <div class="v-head"><h2>INVENTARIO RÁPIDO</h2><p>Estado actual del stock</p></div>
       <div class="sgrid" id="g-overview"><div class="ldmsg">Cargando stock...</div></div>
@@ -203,6 +211,138 @@
       <!-- Tarjetas (visible en móvil) -->
       <div class="pedido-cards" id="pedidoCards">
         <div style="text-align:center;padding:2rem;color:#444;font-size:.85rem">Cargando pedidos...</div>
+      </div>
+    </section>
+
+    <!-- ══ ESCÁNER / CAJA ══ -->
+    <section class="vista" id="v-pos">
+      <div class="v-head"><h2>ESCÁNER / CAJA</h2><p>Escanea la camiseta · cobra · confirma pedidos online · imprime recibos y etiquetas</p></div>
+
+      <div class="pos-setup" id="posSetup" hidden></div>
+
+      <div id="posApp">
+        <div class="pos-bar">
+          <div class="pos-tabs" role="tablist" aria-label="Secciones del escáner">
+            <button class="pos-tab on" type="button" data-pos-tab="cobrar"><i class="bi bi-cash-coin"></i> Cobrar</button>
+            <button class="pos-tab" type="button" data-pos-tab="pedido"><i class="bi bi-box-seam"></i> Confirmar pedido</button>
+            <button class="pos-tab" type="button" data-pos-tab="etiquetas"><i class="bi bi-upc"></i> Etiquetas</button>
+            <button class="pos-tab" type="button" data-pos-tab="ventas"><i class="bi bi-clock-history"></i> Ventas</button>
+          </div>
+          <label class="pos-paper">Papel del recibo
+            <select id="posPaper"><option value="80">80 mm</option><option value="58">58 mm</option></select>
+          </label>
+        </div>
+
+        <!-- Caja de escaneo (Cobrar y Confirmar pedido) -->
+        <div id="posScanWrap">
+          <div class="pos-scanbox" id="posScanBox">
+            <i class="bi bi-upc-scan"></i>
+            <input id="posCode" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Código de la camiseta" placeholder="Escanea la camiseta, o escribe el código y pulsa Enter">
+            <button class="pos-btn ghost sm" id="posCamBtn" type="button"><i class="bi bi-camera-video"></i> Cámara</button>
+          </div>
+          <div class="pos-cam" id="posCam" hidden>
+            <div id="posCamView"></div>
+            <button class="pos-btn ghost sm" id="posCamStop" type="button">Cerrar cámara</button>
+          </div>
+          <div class="pos-msg info" id="posMsg" role="status" aria-live="polite">Listo para escanear.</div>
+          <div class="pos-notice" id="posNotice" hidden></div>
+        </div>
+
+        <!-- Cobrar -->
+        <div data-pos-panel="cobrar">
+          <div class="pos-cols">
+            <div class="pos-col">
+              <div class="pos-title">Prendas escaneadas <small id="posCount"></small></div>
+              <div id="posItems"></div>
+            </div>
+            <div class="pos-col">
+              <div class="pos-total"><span>Total a cobrar</span><strong id="posTotal">$0</strong></div>
+              <span class="pos-label">Método de pago</span>
+              <div class="pos-methods" id="posMethods">
+                <button class="pos-chip on" type="button" data-m="Efectivo">Efectivo</button>
+                <button class="pos-chip" type="button" data-m="Nequi">Nequi</button>
+                <button class="pos-chip" type="button" data-m="Daviplata">Daviplata</button>
+                <button class="pos-chip" type="button" data-m="Bancolombia">Bancolombia</button>
+                <button class="pos-chip" type="button" data-m="Tarjeta">Tarjeta</button>
+                <button class="pos-chip" type="button" data-m="Otro">Otro</button>
+              </div>
+              <div id="posCash">
+                <span class="pos-label">Efectivo recibido</span>
+                <div class="pos-field"><input id="posRecibido" type="number" inputmode="numeric" min="0" step="100" placeholder="Ej: 100000"></div>
+                <div class="pos-quick" id="posQuick"></div>
+                <div class="pos-change"><span>Cambio</span><strong id="posCambio">—</strong></div>
+              </div>
+              <span class="pos-label">Cliente (opcional)</span>
+              <div class="pos-field"><input id="posCliente" type="text" maxlength="60" placeholder="Nombre para el recibo"></div>
+              <label class="pos-check"><input type="checkbox" id="posAutoPrint" checked> Imprimir recibo al cobrar</label>
+              <button class="pos-btn block" id="posCobrar" type="button" disabled><i class="bi bi-check2-circle"></i> Cobrar</button>
+              <button class="pos-btn ghost block" id="posVaciar" type="button" style="margin-top:.5rem;padding:.7rem" disabled>Vaciar lista</button>
+              <div class="pos-last" id="posLast" hidden></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Confirmar pedido online -->
+        <div data-pos-panel="pedido" hidden>
+          <div class="pos-cols">
+            <div class="pos-col">
+              <div class="pos-title">Pedido online</div>
+              <div class="pos-field"><select id="posOrderSel" aria-label="Pedido a confirmar"></select></div>
+              <div id="posOrderInfo" class="pos-orderinfo"></div>
+              <div id="posReq" class="pos-scroll"></div>
+            </div>
+            <div class="pos-col">
+              <div class="pos-title">Prendas escaneadas <small id="posOrderCount"></small></div>
+              <div id="posOrderItems"></div>
+              <button class="pos-btn block" id="posOrderOk" type="button" style="margin-top:1rem" disabled><i class="bi bi-check2-circle"></i> Confirmar pedido</button>
+              <button class="pos-btn ghost block" id="posOrderClear" type="button" style="margin-top:.5rem;padding:.7rem" disabled>Limpiar escaneos</button>
+              <div class="pos-last" id="posOrderLast" hidden></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Etiquetas -->
+        <div data-pos-panel="etiquetas" hidden>
+          <div class="pos-col" style="margin-bottom:1.2rem">
+            <div class="pos-title">Crear etiquetas con código de barras</div>
+            <div class="lab-form">
+              <div class="pos-field"><label class="pos-label" style="margin:0" for="labProd">Producto</label><select id="labProd"></select></div>
+              <div class="pos-field"><label class="pos-label" style="margin:0" for="labSize">Talla</label>
+                <select id="labSize"><option>S</option><option selected>M</option><option>L</option><option>XL</option></select></div>
+              <div class="pos-field"><label class="pos-label" style="margin:0" for="labQty">Cantidad</label><input id="labQty" type="number" min="1" max="200" value="1"></div>
+              <div class="pos-field"><label class="pos-label" style="margin:0" for="labFmt">Tamaño de etiqueta</label>
+                <select id="labFmt">
+                  <option value="50x30">50 × 30 mm (rollo)</option>
+                  <option value="60x40">60 × 40 mm (rollo)</option>
+                  <option value="a4">Hoja A4 (3 × 8)</option>
+                </select></div>
+            </div>
+            <div style="display:flex;gap:.6rem;flex-wrap:wrap">
+              <button class="pos-btn gold" id="labGen" type="button"><i class="bi bi-upc"></i> Crear e imprimir</button>
+              <button class="pos-btn ghost" id="labReprint" type="button" hidden><i class="bi bi-printer"></i> Imprimir de nuevo</button>
+            </div>
+            <p class="pos-orderinfo" style="margin-top:.8rem">Cada camiseta física recibe un código único (K1000123…). Pega una etiqueta en cada prenda. Crear etiquetas <b>no cambia</b> el stock del producto.</p>
+            <div class="lab-preview" id="labPreview" hidden style="margin-top:1rem"></div>
+          </div>
+          <div class="pos-col">
+            <div class="pos-title">Etiquetas recientes
+              <span style="display:flex;gap:.5rem;align-items:center">
+                <label class="pos-check" style="margin:0"><input type="checkbox" id="labOnlyStock" checked> Solo en stock</label>
+                <button class="pos-btn ghost sm" id="labPrintAll" type="button"><i class="bi bi-printer"></i> Imprimir las mostradas</button>
+                <button class="pos-btn danger sm" id="labDeleteUnused" type="button" title="Elimina hasta 50 etiquetas sin vender"><i class="bi bi-trash3"></i> Eliminar hasta 50 en stock</button>
+              </span>
+            </div>
+            <div class="pos-scroll"><table class="pos-table"><thead><tr><th>Código</th><th>Producto</th><th>Talla</th><th>Estado</th><th></th></tr></thead><tbody id="labRecent"></tbody></table></div>
+          </div>
+        </div>
+
+        <!-- Ventas -->
+        <div data-pos-panel="ventas" hidden>
+          <div class="pos-col">
+            <div class="pos-title">Ventas de mostrador <small id="posVentasHoy"></small></div>
+            <div class="pos-scroll"><table class="pos-table"><thead><tr><th>Venta</th><th>Fecha</th><th>Prendas</th><th>Pago</th><th style="text-align:right">Total</th><th>Estado</th><th></th></tr></thead><tbody id="posVentas"></tbody></table></div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -317,6 +457,7 @@
 
 <div class="toast" id="toast"><i id="tIco"></i><span id="tMsg"></span></div>
 <script src="admin.js"></script>
+<script src="pos.js?v=1"></script>
 <script src="pwa.js?v=4"></script>
 </body>
 </html>
